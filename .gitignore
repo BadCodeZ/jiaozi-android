@@ -1,0 +1,26 @@
+# 构建产物
+app/build/
+build/
+
+# IDE
+.idea/
+*.iml
+.gradle/
+
+# 系统
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# 本地配置
+local.properties
+
+# 签名密钥
+*.keystore
+*.jks
+
+# 日志
+*.log
+
+# 临时文件
+*.tmp

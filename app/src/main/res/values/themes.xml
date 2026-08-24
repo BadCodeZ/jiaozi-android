@@ -1,0 +1,10 @@
+<resources>
+    <!-- 应用基础主题（Compose 负责实际配色，这里仅作无 ActionBar 透明状态栏壳） -->
+    <style name="Theme.Jiaozi" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:windowBackground">@color/launch_bg</item>
+    </style>
+</resources>

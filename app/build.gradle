@@ -1,0 +1,147 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.24'
+    id 'com.google.devtools.ksp'
+}
+
+android {
+    namespace 'com.jiaozi.sz'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.jiaozi.sz'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        vectorDrawables {
+            useSupportLibrary true
+        }
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file("$rootDir/debug.keystore")
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
+    }
+
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+
+    testOptions {
+        unitTests {
+            // 项目路径含中文，强制测试 fork JVM 使用 UTF-8，避免 ClassNotFound
+            all { it.jvmArgs('-Dfile.encoding=UTF-8') }
+        }
+    }
+}
+
+dependencies {
+    // 核心
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-service:2.7.0'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+
+    // Compose
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.compose.material:material-icons-extended'
+    implementation 'androidx.compose.material3:material3-window-size-class'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+
+    // 导航
+    implementation 'androidx.navigation:navigation-compose:2.7.7'
+
+    // 持久化：Room + DataStore
+    implementation 'androidx.room:room-runtime:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
+    ksp 'androidx.room:room-compiler:2.6.1'
+    implementation 'androidx.datastore:datastore-preferences:1.1.1'
+
+    // JSON
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3'
+
+    // 后台任务（同步/定时复习提醒）
+    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+
+    // 测试
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+// —— 单元测试中文路径修复 ——
+// 项目路径含中文（软件/手机端项目）。Gradle 测试 worker 把中文路径的测试类目录当作
+// file: URL 时，因 Windows 默认编码（GBK）与 NTFS Unicode 不一致导致 ClassNotFoundException。
+// 将主代码与单元测试的 Kotlin 编译产物复制到一个 ASCII 临时目录，并前置到测试 classpath，
+// 让 ASCII 路径先命中，绕过该问题。不影响 KSP / assembleDebug（buildDir 不变）。
+afterEvaluate {
+    def testTask = tasks.findByName('testDebugUnitTest')
+    def compileTest = tasks.findByName('compileDebugUnitTestKotlin')
+    def compileMain = tasks.findByName('compileDebugKotlin')
+    if (testTask != null && compileTest != null) {
+        def srcKotlinClasses = file("${buildDir}/tmp/kotlin-classes")
+        def asciiBase = file('C:/wb_tc/kotlin-classes')
+        def copyTask = tasks.register('copyKotlinClassesAscii') {
+            dependsOn compileTest
+            if (compileMain != null) dependsOn compileMain
+            doLast {
+                copy {
+                    from srcKotlinClasses
+                    into asciiBase
+                    include '**/*.class'
+                }
+            }
+        }
+        testTask.dependsOn(copyTask)
+        def asciiDebug = file("${asciiBase}/debug")
+        def asciiTest = file("${asciiBase}/debugUnitTest")
+        testTask.classpath = files(asciiDebug, asciiTest) + testTask.classpath
+    }
+}

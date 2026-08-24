@@ -1,0 +1,45 @@
+<resources>
+    <string name="app_name">综合教资备考平台</string>
+
+    <!-- 导航 -->
+    <string name="nav_today">今日</string>
+    <string name="nav_practice">练习</string>
+    <string name="nav_bank">题库</string>
+    <string name="nav_graph">图谱</string>
+    <string name="nav_stats">统计</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- 首页 -->
+    <string name="today_title">今日</string>
+    <string name="today_checkin">连续打卡</string>
+    <string name="today_review_due">待复习</string>
+    <string name="today_weak_top">薄弱章节 Top3</string>
+    <string name="today_start_practice">开始练习</string>
+
+    <!-- 练习 -->
+    <string name="practice_chapter">章节练习</string>
+    <string name="practice_weak">薄弱优先</string>
+    <string name="practice_wrong">错题本</string>
+    <string name="practice_blueprint">全科模考</string>
+    <string name="practice_submit">提交</string>
+    <string name="practice_next">下一步</string>
+    <string name="practice_skip_cause">跳过</string>
+    <string name="practice_analysis">解析</string>
+    <string name="practice_correct">答对</string>
+    <string name="practice_wrong_ans">答错</string>
+
+    <!-- 胶囊/计时 -->
+    <string name="capsule_studying">专注学习中</string>
+    <string name="capsule_timer">计时</string>
+
+    <!-- 设置 -->
+    <string name="settings_theme">主题</string>
+    <string name="settings_subject3">科三学科</string>
+    <string name="settings_ai">AI 接入</string>
+    <string name="settings_sync">多端同步</string>
+    <string name="settings_export">导出数据</string>
+    <string name="settings_import">导入数据</string>
+
+    <string name="widget_label">综合教资备考平台</string>
+    <string name="widget_today">今日 · 继续练习</string>
+</resources>
