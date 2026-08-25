@@ -199,7 +199,7 @@ cd jiaozi-android
 
 #### 注意事项
 
-- `app/build.gradle` 中 `versionCode=79 / versionName=2.77`（与发布版本一致），发布包文件名为 `JiaoziAPP v2.77.apk`，版本由内部逻辑确定
+- `app/build.gradle` 中 `versionCode=79 / versionName=2.77`（与发布版本一致），发布包文件名为 `JiaoziAPP.apk`，版本由内部逻辑确定
 - 测试用 `debug.keystore` 不随源码分发，需自行生成或改用官方签名
 - 题库与知识库内置在 `assets/`，不随同步包导出
 
@@ -265,7 +265,7 @@ cd jiaozi-android
 
 | 项目 | 值 |
 |------|------|
-| 安装包 | `JiaoziAPP v2.77.apk` |
+| 安装包 | `JiaoziAPP.apk` |
 | 大小 | 19.79 MB |
 | MD5 | `37d755d5df21736aa1091e55feca09f3` |
 | 内部版本 | V2.77 |
@@ -377,7 +377,7 @@ limitations under the License.
 |------|-------|
 | Release | V2.77 |
 | Built-in Questions | 3,342 (covering Subject 1/2 all chapters + Subject 3 across 17 subjects) |
-| Package | `JiaoziAPP v2.77.apk` (19.79 MB) |
+| Package | `JiaoziAPP.apk` (19.79 MB) |
 | File Integrity | MD5: `37d755d5df21736aa1091e55feca09f3` |
 | Min OS | Android 8.0 (API 26) |
 | Network | Core features are fully offline; only AI commentary and sync require internet |
