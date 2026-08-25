@@ -76,7 +76,7 @@
 
 **新增功能**
 - **应用内更新检测**：「我的 → 关于」页新增「检查更新」，联网比对 GitHub 版本信息（`version.json`），发现新版本弹窗提示并引导前往下载，告别手动查版。
-- **Pro 诚信付费框架**：新增「Pro 会员」体系与本地激活机制（会员状态本地存储，靠用户自觉，不联网验单），并预留功能门禁 `appVm.isPro`，为后续会员专属功能打底。
+- **pro功能开关**：新增 Pro 功能开关（门禁 `appVm.isPro` 预留，本期未接入具体付费逻辑）。
 
 **题库与质量**
 - **题库修订（V2.76.1）**：6 道题目的答案/解析经 AI 判卷 + 联网核验修正（4 题答案、2 题解析），其余题目逐字不变，题量仍为 3,342 道。
@@ -199,7 +199,7 @@ cd jiaozi-android
 
 #### 注意事项
 
-- `app/build.gradle` 中 `versionCode/versionName` 为工程默认值（1.0），实际发布版本由 APK 文件名及内部逻辑确定
+- `app/build.gradle` 中 `versionCode=79 / versionName=2.77`（与发布版本一致），发布包文件名为 `JiaoziAPP v2.77.apk`，版本由内部逻辑确定
 - 测试用 `debug.keystore` 不随源码分发，需自行生成或改用官方签名
 - 题库与知识库内置在 `assets/`，不随同步包导出
 
@@ -265,11 +265,10 @@ cd jiaozi-android
 
 | 项目 | 值 |
 |------|------|
-| 安装包 | `JiaoziAPP v2.75.apk` |
-| 大小 | 18.3 MB |
-| MD5 | `ad3995bc3fe35b45b86bc4707a3c074f` |
-| 内部版本 | V2.75 |
-| 正式版 | V1.1 |
+| 安装包 | `JiaoziAPP v2.77.apk` |
+| 大小 | 19.79 MB |
+| MD5 | `37d755d5df21736aa1091e55feca09f3` |
+| 内部版本 | V2.77 |
 | 包名 | com.jiaozi.sz |
 | 内置题量 | 3,342 道 |
 | 科三学科 | 17 个 |
@@ -376,10 +375,10 @@ limitations under the License.
 
 | Item | Value |
 |------|-------|
-| Release | V1.1 (internal V2.75) |
+| Release | V2.77 |
 | Built-in Questions | 3,342 (covering Subject 1/2 all chapters + Subject 3 across 17 subjects) |
-| Package | `JiaoziAPP v2.75.apk` (18.3 MB) |
-| File Integrity | MD5: `ad3995bc3fe35b45b86bc4707a3c074f` |
+| Package | `JiaoziAPP v2.77.apk` (19.79 MB) |
+| File Integrity | MD5: `37d755d5df21736aa1091e55feca09f3` |
 | Min OS | Android 8.0 (API 26) |
 | Network | Core features are fully offline; only AI commentary and sync require internet |
 | Source Code | 61 Kotlin files, fully open source |
