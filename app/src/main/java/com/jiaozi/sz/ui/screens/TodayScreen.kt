@@ -18,11 +18,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +60,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.draw.clip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -63,13 +75,11 @@ import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.Motivation
 import com.jiaozi.sz.ui.LocalPracticeVm
+import com.jiaozi.sz.ui.Motion
+import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.ui.PracticeViewModel
-import com.jiaozi.sz.ui.island.IslandBus
-import com.jiaozi.sz.ui.island.IslandState
 import com.jiaozi.sz.ui.Screen
 import com.jiaozi.sz.ui.theme.AppGradients
-import com.jiaozi.sz.xiaomi.FloatingIslandService
-import android.provider.Settings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,11 +87,11 @@ fun TodayScreen(nav: NavHostController) {
     val appVm: AppViewModel = LocalAppVm.current
     val practiceVm: PracticeViewModel = LocalPracticeVm.current
     val ctx = LocalContext.current
+    val rm = reduceMotionNow(ctx)
     val progress by appVm.progressMap.collectAsStateWithLifecycle()
     val streak by appVm.checkinStreak.collectAsStateWithLifecycle()
     val disc by appVm.subject3Disc.collectAsStateWithLifecycle()
     val targetDay by appVm.targetDay.collectAsStateWithLifecycle()
-    val islandEnabled by appVm.islandEnabled.collectAsStateWithLifecycle()
     val themePack by appVm.themePack.collectAsStateWithLifecycle()
     val onboarded by appVm.onboarded.collectAsStateWithLifecycle()
     val metaLoaded by appVm.metaLoaded.collectAsStateWithLifecycle()
@@ -89,6 +99,7 @@ fun TodayScreen(nav: NavHostController) {
 
     // 首开轻引导：meta 加载完成后且未引导过才弹，避免默认值 false 闪烁；去设置/稍后都会置已引导
     var showOnboard by remember { mutableStateOf(false) }
+    var showMock by remember { mutableStateOf(false) }
     LaunchedEffect(onboarded, metaLoaded) {
         if (metaLoaded && !onboarded) showOnboard = true
     }
@@ -123,19 +134,7 @@ fun TodayScreen(nav: NavHostController) {
         }.sortedByDescending { it.third }.take(3)
     }
 
-    // 灵动岛（上岛）：首页场景，距考天数 + 今日已练；开关开启时自动拉起服务
-    LaunchedEffect(daysLeft, practicedCount, islandEnabled) {
-        val d = if (daysLeft != null && daysLeft >= 0) "距考 $daysLeft 天 · " else ""
-        if (islandEnabled && Settings.canDrawOverlays(ctx)) {
-            ctx.startForegroundService(Intent(ctx, FloatingIslandService::class.java))
-        }
-        IslandBus.enter("today", IslandState(kind = "today", title = "备考中", detail = "${d}今日已练 $practicedCount 题"))
-    }
-    DisposableEffect(Unit) {
-        onDispose { IslandBus.leave("today") }
-    }
-
-    Crossfade(targetState = metaLoaded, animationSpec = tween(250), label = "todayLoad") { loaded ->
+    Crossfade(targetState = metaLoaded, animationSpec = tween(Motion.duration(rm, Motion.SLOW)), label = "todayLoad") { loaded ->
         if (loaded) {
             Column(
                 Modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp),
@@ -174,20 +173,87 @@ fun TodayScreen(nav: NavHostController) {
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        // G3 目标日倒计时 Hero（对齐网页端 targetDay 倒计时；渐变背景，未设置时提示设置）
+        // 升级版 Hero：放大比例 + 设计感（渐变 + 右上装饰圆 + 大数字 + 打卡胶囊）；配色走主题包渐变
         if (daysLeft != null) {
             val grad = AppGradients.hero(themePack, isSystemInDarkTheme())
             Card(
-                Modifier.fillMaxWidth().background(grad, RoundedCornerShape(20.dp)),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("距离教资考试还有", style = MaterialTheme.typography.labelMedium, color = Color.White)
-                    Text(
-                        if (daysLeft >= 0) "$daysLeft 天" else "已结束",
-                        style = MaterialTheme.typography.headlineLarge, color = Color.White
+                Box(
+                    Modifier
+                        .background(grad, RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(20.dp))
+                        .padding(20.dp)
+                ) {
+                    // 企鹅主题：右侧底部半透明企鹅剪影装饰（仅首页默认主题展示，matchParentSize 不撑开布局）
+                    if (themePack == "企鹅") {
+                        Canvas(
+                            Modifier.matchParentSize().padding(end = 8.dp, bottom = 4.dp),
+                            onDraw = {
+                                val bodyR = size.height * 0.30f
+                                val headR = bodyR * 0.6f
+                                val px = size.width - bodyR * 1.6f
+                                val py = size.height - bodyR * 1.2f
+                                val fill = Color.White.copy(alpha = 0.15f)
+                                drawOval(fill, topLeft = Offset(px - bodyR, py - bodyR * 0.7f), size = Size(bodyR * 2f, bodyR * 1.8f))
+                                drawOval(Color.White.copy(alpha = 0.08f), topLeft = Offset(px - bodyR * 0.5f, py - bodyR * 0.3f), size = Size(bodyR * 0.8f, bodyR * 1.1f))
+                                drawCircle(fill, headR, Offset(px, py - bodyR * 0.8f))
+                                val beak = Path().apply {
+                                    moveTo(px + headR * 0.4f, py - bodyR * 0.85f)
+                                    lineTo(px + headR * 1.1f, py - bodyR * 0.8f)
+                                    lineTo(px + headR * 0.4f, py - bodyR * 0.75f)
+                                    close()
+                                }
+                                drawPath(beak, Color(0xFFE67E22).copy(alpha = 0.3f))
+                                drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px - headR * 0.25f, py - bodyR * 0.85f))
+                                drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px + headR * 0.3f, py - bodyR * 0.85f))
+                                drawPath(Path().apply {
+                                    moveTo(px - bodyR * 0.9f, py - bodyR * 0.2f)
+                                    quadraticBezierTo(px - bodyR * 1.3f, py + bodyR * 0.1f, px - bodyR * 0.7f, py + bodyR * 0.3f)
+                                    lineTo(px - bodyR * 0.5f, py + bodyR * 0.1f)
+                                    close()
+                                }, fill)
+                                drawPath(Path().apply {
+                                    moveTo(px + bodyR * 0.9f, py - bodyR * 0.2f)
+                                    quadraticBezierTo(px + bodyR * 1.3f, py + bodyR * 0.1f, px + bodyR * 0.7f, py + bodyR * 0.3f)
+                                    lineTo(px + bodyR * 0.5f, py + bodyR * 0.1f)
+                                    close()
+                                }, fill)
+                            }
+                        )
+                    }
+                    // 右上角半透明装饰圆（负偏移完全收进卡片内，杜绝右缘硬切）
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-12).dp, y = (-12).dp)
+                            .size(56.dp)
+                            .background(Color.White.copy(alpha = 0.10f), CircleShape)
                     )
-                    Text("目标日 $targetDay", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.9f))
+                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("距教资考试", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
+                        Text(
+                            if (daysLeft >= 0) "$daysLeft 天" else "已结束",
+                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White
+                        )
+                        Text(
+                            "目标日 $targetDay · 今日已练 $practicedCount 题",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Box(
+                            Modifier
+                                .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(999.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("连续打卡 $streak 天", style = MaterialTheme.typography.labelSmall, color = Color.White)
+                        }
+                    }
                 }
             }
         } else if (targetDay.isBlank()) {
@@ -206,47 +272,11 @@ fun TodayScreen(nav: NavHostController) {
             }
         }
 
-        // G3 顶部四统计（对齐网页端今日概览）
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("题库总量", "$totalQuestions", Modifier.weight(1f))
-            StatCard("已练习", "$practicedCount", Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("总正确率", if (overallAcc < 0f) "—" else "${(overallAcc * 100).toInt()}%", Modifier.weight(1f))
-            StatCard("连续打卡", "$streak 天", Modifier.weight(1f))
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard("待复习", "$due 题", Modifier.weight(1f))
-            StatCard("目标日", if (daysLeft == null) "未设" else if (daysLeft >= 0) "$daysLeft 天" else "已结束", Modifier.weight(1f))
-        }
-
-        // G3 今日待复习 + 今日建议（对齐网页端 dueCards / 学习计划提示）
-        if (due > 0) {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                    Text("今日待复习 $due 题", style = MaterialTheme.typography.bodyMedium)
-                    Button(onClick = { appVm.checkIn(); practiceVm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc)); nav.navigate(Screen.Practice.route) }) {
-                        Text("去复习")
-                    }
-                }
-            }
-        }
-        val suggestion = when {
-            practicedCount == 0 -> "还没有练习记录，从「开始练习」做 20 题，今天就能看到成长曲线。"
-            due == 0 -> "今日复习已清空，建议再做一组薄弱章节巩固。"
-            else -> "今日待复习 $due 题，优先完成它们比做新题更高效。"
-        }
-        Text(suggestion, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-
-        // 开始练习主 CTA：按用户建议上移到「章节」TOC（薄弱章节 Top3）上方，缩短开始练习路径
+        // 行动区：开始练习（主）+ 复习 / 快速模考 快捷胶囊
         Button(
             onClick = {
                 appVm.checkIn()
-                practiceVm.start(com.jiaozi.sz.domain.PracticeConfig(mode = "随机全科", num = 20))
+                practiceVm.start(PracticeConfig(mode = "随机全科", num = 20))
                 nav.navigate(Screen.Practice.route)
             },
             modifier = Modifier.fillMaxWidth()
@@ -255,76 +285,113 @@ fun TodayScreen(nav: NavHostController) {
             Spacer(Modifier.width(6.dp))
             Text("开始练习")
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(
+                onClick = {
+                    appVm.checkIn()
+                    practiceVm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc))
+                    nav.navigate(Screen.Practice.route)
+                },
+                modifier = Modifier.weight(1f)
+            ) { Text("复习 $due 题") }
+            OutlinedButton(onClick = { showMock = true }, modifier = Modifier.weight(1f)) { Text("快速模考 ▾") }
+        }
 
-        Text("薄弱章节 Top3", style = MaterialTheme.typography.titleMedium)
+        // 学习概览（2x2 芯片；连续打卡 / 目标日已并入上方 Hero，避免重复）
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard("题库总量", "$totalQuestions", Modifier.weight(1f))
+            StatCard("已练习", "$practicedCount", Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard("总正确率", if (overallAcc < 0f) "—" else "${(overallAcc * 100).toInt()}%", Modifier.weight(1f))
+            StatCard("待复习", "$due 题", Modifier.weight(1f))
+        }
+
+        // 今日待复习入口已并入上方「复习 N 题」胶囊；开始练习与快捷胶囊已在 Hero 下方统一置顶
+
+        // 薄弱章节：紧凑列表（整行点击即去练该章，去掉逐卡按钮，节省竖向空间）
+        Text("薄弱章节", style = MaterialTheme.typography.titleMedium)
         if (weakTop3.isEmpty()) {
             Text("暂无数据，去做几道题吧～", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         } else {
-            weakTop3.forEach { (subj, ch, sc) ->
-                Card(
-                    Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("$subj · $ch", style = MaterialTheme.typography.bodyMedium)
-                            Text("${(sc * 100).toInt()}% 薄弱", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        LinearProgressIndicator(
-                            progress = sc.toFloat().coerceIn(0f, 1f),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                appVm.checkIn()
-                                practiceVm.startChapter(subj, ch, null, 20)
-                                nav.navigate(Screen.Practice.route)
-                            },
-                            modifier = Modifier.fillMaxWidth()
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    weakTop3.forEach { (subj, ch, sc) ->
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    appVm.checkIn()
+                                    practiceVm.startChapter(subj, ch, null, 20, if (subj == "科三") disc else null)
+                                    nav.navigate(Screen.Practice.route)
+                                }
                         ) {
-                            Icon(appPainter("play"), contentDescription = null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("去练这章")
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("$subj · $ch", style = MaterialTheme.typography.bodyMedium)
+                                Text("${(sc * 100).toInt()}% 薄弱", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = sc.toFloat().coerceIn(0f, 1f),
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
             }
         }
 
-        // 首页快捷卡：把「我的」页内的 4 个新模块前置到首页（不动底部导航，避免拥挤）
-        // R5：极小屏（如 320dp）2×2 固定权重会换行拥挤 → 改为横向滚动卡带（固定宽度，不随屏宽挤压换行）
+        // 备考工具：4 列等宽等高网格，图标与文字居中（保留首页快捷入口，不占额外竖向空间）
         Text("备考工具", style = MaterialTheme.typography.titleMedium)
         Row(
-            Modifier.horizontalScroll(rememberScrollState()),
+            Modifier.height(IntrinsicSize.Min),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            QuickCard("备课教案", appPainter("school")) { nav.navigate("lesson") }
-            QuickCard("收集箱", appPainter("inbox")) { nav.navigate("inbox") }
-            QuickCard("校订", appPainter("proof")) { nav.navigate("proof") }
-            QuickCard("AI 帮手", appPainter("chat")) { nav.navigate("aichat") }
+            QuickCard("备课教案", appPainter("school"), onClick = { nav.navigate("lesson") }, modifier = Modifier.weight(1f))
+            QuickCard("收集箱", appPainter("inbox"), onClick = { nav.navigate("inbox") }, modifier = Modifier.weight(1f))
+            QuickCard("校订", appPainter("proof"), onClick = { nav.navigate("proof") }, modifier = Modifier.weight(1f))
+            QuickCard("AI 帮手", appPainter("chat"), onClick = { nav.navigate("aichat") }, modifier = Modifier.weight(1f))
         }
-
-        // 首页快速模考入口（通勤碎片时间也能做套卷，支持三档）
-        Text("快速模考（限时套卷）", style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { appVm.checkIn(); practiceVm.startBlueprint(disc, 20, 40 * 60); nav.navigate(Screen.Practice.route) },
-                modifier = Modifier.weight(1f)
-            ) { Text("20 题 / 40 分") }
-            OutlinedButton(
-                onClick = { appVm.checkIn(); practiceVm.startBlueprint(disc, 30, 60 * 60); nav.navigate(Screen.Practice.route) },
-                modifier = Modifier.weight(1f)
-            ) { Text("30 题 / 60 分") }
-            OutlinedButton(
-                onClick = { appVm.checkIn(); practiceVm.startBlueprint(disc, 50, 90 * 60); nav.navigate(Screen.Practice.route) },
-                modifier = Modifier.weight(1f)
-                ) { Text("50 题 / 90 分") }
-        }
+        // 快速模考入口已并入上方「快速模考 ▾」胶囊，点击弹出三档选择
             }
         } else {
             SkeletonTodayScreen()
+        }
+
+        // 快速模考三档选择（由首页「快速模考 ▾」胶囊唤起）
+        if (showMock) {
+            AlertDialog(
+                onDismissRequest = { showMock = false },
+                confirmButton = {},
+                dismissButton = {},
+                title = { Text("快速模考（限时套卷）") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf(
+                            Triple(20, 40, "20 题 / 40 分"),
+                            Triple(30, 60, "30 题 / 60 分"),
+                            Triple(50, 90, "50 题 / 90 分")
+                        ).forEach { (n, min, label) ->
+                            Button(
+                                onClick = {
+                                    showMock = false
+                                    appVm.checkIn()
+                                    practiceVm.startBlueprint(disc, n, min * 60)
+                                    nav.navigate(Screen.Practice.route)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text(label) }
+                        }
+                    }
+                }
+            )
         }
     }
 
@@ -377,14 +444,18 @@ fun TodayScreen(nav: NavHostController) {
 }
 
 @Composable
-private fun QuickCard(title: String, icon: Painter, onClick: () -> Unit) {
+private fun QuickCard(title: String, icon: Painter, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
-        Modifier.width(96.dp).clickable { onClick() },
+        modifier.fillMaxHeight().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
-        Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(painter = icon, contentDescription = title, modifier = Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(title, style = MaterialTheme.typography.labelLarge)
+        Column(
+            Modifier.fillMaxSize().padding(vertical = 12.dp, horizontal = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(painter = icon, contentDescription = title, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+            Text(title, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -406,6 +477,17 @@ private fun StatCard(label: String, value: String, modifier: Modifier = Modifier
  */
 @Composable
 private fun ShimmerBox(modifier: Modifier, boxHeight: androidx.compose.ui.unit.Dp) {
+    // 系统「减少动态效果」开启时停掉无限微光，改为静态占位，避免持续闪烁扰人（§39 P3 待改进①）
+    if (reduceMotionNow(LocalContext.current)) {
+        Box(
+            modifier
+                .fillMaxWidth()
+                .height(boxHeight)
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+        return
+    }
     val transition = rememberInfiniteTransition(label = "shimmer")
     val x by transition.animateFloat(
         initialValue = 0f, targetValue = 600f,

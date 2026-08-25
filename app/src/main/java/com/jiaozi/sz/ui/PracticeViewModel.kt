@@ -48,7 +48,8 @@ data class PracticeState(
     val timeLimitSec: Int? = null,        // 模考限时（秒）
     val draft: String = "",               // 主观题草稿
     val showAnswer: Boolean = false,      // 主观题是否已"对答案"
-    val historyDraft: String? = null      // 历史草稿（来自错题本进度，复盘可见）
+    val historyDraft: String? = null,     // 历史草稿（来自错题本进度，复盘可见）
+    val loading: Boolean = false           // 抽题/加载中：错题本等异步入口的感知反馈
 ) {
     val current: Question? get() = questions.getOrNull(index)
     val total: Int get() = questions.size
@@ -83,6 +84,7 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 统一入口：按配置抽题并开始 */
     fun start(cfg: PracticeConfig) = viewModelScope.launch {
+        _state.value = _state.value.copy(loading = true)
         val progress = loadProgress()
         val all = repo.bank.exam
         val qs = PracticeEngine.build(all, cfg, progress)
@@ -117,8 +119,8 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         _config.value = PracticeConfig()
     }
 
-    fun startChapter(subject: String, chapter: String, section: String? = null, num: Int = 30) {
-        start(PracticeConfig(mode = "章节练习", subj = subject, chapter = chapter, section = section, num = num))
+    fun startChapter(subject: String, chapter: String, section: String? = null, num: Int = 30, disc: String? = null) {
+        start(PracticeConfig(mode = "章节练习", subj = subject, chapter = chapter, section = section, num = num, disc = disc))
     }
 
     fun startWeak(disc: String) {
@@ -126,13 +128,27 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startWrong(disc: String) {
-        start(PracticeConfig(mode = "仅复习", disc = disc))
+        // 错题本：取 wrongBook 标记的题（科三按学科隔离）。空集合时提示，避免「点击无反应」。
+        viewModelScope.launch {
+            _state.value = _state.value.copy(loading = true)
+            val progress = loadProgress()
+            val wrongs = PracticeEngine.wrong(repo.bank.exam, progress)
+                .filter { it.subject != "科三" || it.disc == disc }
+            if (wrongs.isEmpty()) {
+                _state.value = _state.value.copy(loading = false)
+                Toast.makeText(getApplication(), "当前没有错题，先去练习里标记吧", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            start(PracticeConfig(mode = "错题本", disc = disc))
+        }
     }
 
     /** 模考：支持短模考（20/30/50 题 → 40/60/90 分钟） */
     fun startBlueprint(disc: String, count: Int = 50, timeLimitSec: Int = 90 * 60) {
         viewModelScope.launch {
-            val qs = PracticeEngine.blueprint(repo.bank.exam, disc, count)
+            // 章节权重（来自章节编辑页配置）；为空时蓝图退化为均匀抽取
+            val weights = repo.getChapterConfig().mapValues { it.value.weight }
+            val qs = PracticeEngine.blueprint(repo.bank.exam, disc, count, weights)
             // 题库不足时提示实际抽取数量，避免用户以为满额开考
             if (qs.size < count) {
                 Toast.makeText(
@@ -314,6 +330,30 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
             )
             refreshHistoryDraft(st.index + 1)
         }
+    }
+
+    /** 答题卡跳题：跳转到指定下标并还原该题作答态（已答则回显，未答则重置） */
+    fun goto(idx: Int) {
+        val st = _state.value
+        if (idx == st.index || idx !in st.questions.indices) return
+        val q = st.questions[idx]
+        val r = st.results[q.id]
+        val subjectiveResult = if (q.isSubjective) {
+            when { r?.correct == true -> "right"; r != null -> "wrong"; else -> null }
+        } else null
+        _state.value = st.copy(
+            index = idx,
+            answered = r != null,
+            correct = r?.correct ?: false,
+            selected = r?.selected ?: -1,
+            subjectiveResult = subjectiveResult,
+            showAnalysis = r != null,
+            causeSelected = if (r != null) r.cause.toSet() else emptySet(),
+            draft = if (q.isSubjective) r?.draft ?: "" else "",
+            showAnswer = if (q.isSubjective) r != null else false,
+            historyDraft = null
+        )
+        refreshHistoryDraft(idx)
     }
 
     fun restart() {

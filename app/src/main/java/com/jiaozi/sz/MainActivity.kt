@@ -10,13 +10,23 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jiaozi.sz.ui.AppRoot
 import com.jiaozi.sz.ui.AppViewModel
+import com.jiaozi.sz.ui.CrashScreen
 import com.jiaozi.sz.ui.theme.JiaoziTheme
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     private val appVm: AppViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 崩溃诊断：上次运行若遗留 crash.log（App.kt 全局处理器写入），直接展示，无需连机 logcat 即可定位
+        val crashFile = File(filesDir, "crash.log")
+        if (crashFile.exists()) {
+            val crashText = runCatching { crashFile.readText() }.getOrDefault("(崩溃日志读取失败)")
+            runCatching { crashFile.delete() }
+            setContent { CrashScreen(crashText, onClose = { finish() }) }
+            return
+        }
         enableEdgeToEdge() // 状态栏/导航栏沉浸（HyperOS 风格）
         handleIntent(intent)
         setContent {

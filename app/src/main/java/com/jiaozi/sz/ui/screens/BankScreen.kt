@@ -1,16 +1,21 @@
 package com.jiaozi.sz.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -25,6 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.alpha
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -32,7 +41,9 @@ import com.jiaozi.sz.data.model.Question
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.LocalPracticeVm
+import com.jiaozi.sz.ui.Motion
 import com.jiaozi.sz.ui.PracticeViewModel
+import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.ui.Screen
 import kotlinx.coroutines.delay
 
@@ -42,6 +53,7 @@ fun BankScreen(nav: NavHostController) {
     val practiceVm: PracticeViewModel = LocalPracticeVm.current
     val repo = appVm.repo
     val disc by appVm.subject3Disc.collectAsStateWithLifecycle()
+    val rm = reduceMotionNow(LocalContext.current)
 
     var query by remember { mutableStateOf("") }
     var debounced by remember { mutableStateOf("") }
@@ -50,13 +62,18 @@ fun BankScreen(nav: NavHostController) {
     val results: List<Question> = remember(debounced) {
         if (debounced.isNotBlank()) repo.search(debounced) else emptyList()
     }
+    var filter by remember { mutableStateOf("全部") }
 
     val onQuestionClick: (Question) -> Unit = { q ->
         practiceVm.startByQuestion(q)
         nav.navigate(Screen.Practice.route)
     }
 
-    Column {
+    // 首入淡入：改善「硬切」感知（题库数据为内存加载、瞬时就绪，淡入仅为过渡层次）
+    var appeared by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { appeared = true }
+    val contentAlpha by animateFloatAsState(if (appeared) 1f else 0f, tween(Motion.duration(rm, Motion.SLOW)), label = "bankFade")
+    Column(Modifier.fillMaxSize().alpha(contentAlpha)) {
         OutlinedTextField(
             value = query,
             onValueChange = { query = it },
@@ -74,25 +91,42 @@ fun BankScreen(nav: NavHostController) {
                     Text("返回大纲")
                 }
             }
-            LazyColumn(Modifier.padding(horizontal = 16.dp).padding(bottom = 92.dp)) {
+            LazyColumn(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
                 items(results, contentType = { "q" }) { q -> QuestionRow(q, onClick = { onQuestionClick(q) }) }
             }
         } else {
             // 浏览：按科目/章节（折叠 + LazyColumn）
-            LazyColumn(Modifier.padding(16.dp).padding(bottom = 92.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyColumn(Modifier.padding(16.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 item { Text("题库浏览", style = MaterialTheme.typography.titleMedium) }
                 item { Text("${repo.bank.exam.size} 题 · 科三当前学科：$disc", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
-                item { SpacerFill(8.dp) }
 
-                val subjects = listOf("科一", "科二", "科三")
-                subjects.forEach { subj ->
+                // 快捷入口：继续上次 / 薄弱优先
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        QuickEntryCard("继续上次", "按上次配置开练", Modifier.weight(1f)) { practiceVm.resumeLast(); nav.navigate(Screen.Practice.route) }
+                        QuickEntryCard("薄弱优先", "专攻易错知识点", Modifier.weight(1f)) { practiceVm.startWeak(disc); nav.navigate(Screen.Practice.route) }
+                    }
+                }
+
+                // 科目筛选 chips
+                item {
+                    val chips = listOf("全部", "科一", "科二", "科三")
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        chips.forEach { c ->
+                            FilterChip(selected = filter == c, onClick = { filter = c }, label = { Text(c) })
+                        }
+                    }
+                }
+
+                val subjectsToShow = if (filter == "全部") listOf("科一", "科二", "科三") else listOf(filter)
+                subjectsToShow.forEach { subj ->
                     item(key = "subj-$subj") {
                         SubjectTree(
                             subj = subj,
                             repo = repo,
                             disc = disc,
                             onSectionClick = { chapter, section ->
-                                practiceVm.startChapter(subj, chapter, section, 30)
+                                practiceVm.startChapter(subj, chapter, section, 30, if (subj == "科三") disc else null)
                                 nav.navigate(Screen.Practice.route)
                             }
                         )
@@ -203,4 +237,17 @@ private fun QuestionRow(q: Question, onClick: () -> Unit) {
 @Composable
 private fun SpacerFill(height: androidx.compose.ui.unit.Dp) {
     androidx.compose.foundation.layout.Spacer(Modifier.height(height))
+}
+
+@Composable
+private fun QuickEntryCard(title: String, sub: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Card(
+        modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            Text(sub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }

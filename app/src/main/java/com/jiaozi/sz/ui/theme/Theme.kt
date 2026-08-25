@@ -165,12 +165,17 @@ private fun applyThemePack(base: androidx.compose.material3.ColorScheme, pack: S
         "墨" -> if (dark) Tuple(
             0xFFE0E0E0, 0xFF1A1A1A, 0xFF3A3A3A, 0xFFEAEAEA, 0xFF5A5A5A, 0xFFB0B0B0
         ) else Tuple(
-            0xFF2A2A2A, 0xFFFFFFFF, 0xFFE4E4E4, 0xFF1A1A1A, 0xFF5A5A5A, 0xFF4A4A4A
+            0xFF3A3A3A, 0xFFFFFFFF, 0xFFE4E4E4, 0xFF1A1A1A, 0xFF5A5A5A, 0xFF4A4A4A
         )
         "锦" -> if (dark) Tuple(
             0xFFE57380, 0xFF410009, 0xFF6E1B22, 0xFFFBBEC2, 0xFFE57380, 0xFFE0C044
         ) else Tuple(
             0xFFB23A48, 0xFFFFFFFF, 0xFFFBE6E8, 0xFF410009, 0xFFE57380, 0xFFC9A227
+        )
+        "企鹅" -> if (dark) Tuple(
+            0xFF6E96BF, 0xFF071B2E, 0xFF14334F, 0xFFD6E6F2, 0xFF9DBBDA, 0xFF84A6C8
+        ) else Tuple(
+            0xFF305070, 0xFFFFFFFF, 0xFFE3ECF5, 0xFF10243C, 0xFF5070B0, 0xFF7090B0
         )
         // 默认 = 墨绿（对齐网页端青墨渐变，沉稳高级）；此前默认即小米蓝，现改为墨绿，小米蓝作为独立选项保留
         else -> if (dark) Tuple(
@@ -209,6 +214,8 @@ object AppGradients {
         "墨" -> Brush.linearGradient(listOf(Color(0xFF3A3A3A), Color(0xFF1A1A1A)))
         "锦" -> if (dark) Brush.linearGradient(listOf(Color(0xFFE57380), Color(0xFF6E1B22)))
         else Brush.linearGradient(listOf(Color(0xFFB23A48), Color(0xFF7E2823)))
+        "企鹅" -> if (dark) Brush.linearGradient(listOf(Color(0xFF16304C), Color(0xFF2C5276)))
+        else Brush.linearGradient(listOf(Color(0xFF305070), Color(0xFF1E4E7E)))
         // 默认 = 墨绿（网页端同款青墨渐变）
         else -> if (dark) Brush.linearGradient(listOf(Color(0xFF4FA088), Color(0xFF16302A)))
         else Brush.linearGradient(listOf(Color(0xFF2F6B57), Color(0xFF1C3A30)))

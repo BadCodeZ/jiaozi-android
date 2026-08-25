@@ -17,6 +17,7 @@ data class AiGenState(
     val preview: List<UserQuestionEntity> = emptyList(), // 待审阅（尚未入库）
     val committed: Int = 0,                              // 最近一次已入库条数
     val error: String? = null,
+    val offline: Boolean = false,                        // P2-A：本次为离线样例（无 AI Key）
     val lastSubject: String = "",
     val lastScope: String = ""
 )
@@ -35,8 +36,13 @@ class AiGenViewModel(app: Application) : AndroidViewModel(app) {
         )
         viewModelScope.launch {
             try {
-                val list = AiGenEngine.previewGenerate(repo, provider, apiKey, subject, scope, count, model)
-                _state.value = _state.value.copy(generating = false, preview = list)
+                // P2-A：无 AI Key 时走离线样例，不再直接报错
+                val list = if (apiKey.isBlank()) {
+                    AiGenEngine.offlineGenerate(subject, scope, count)
+                } else {
+                    AiGenEngine.previewGenerate(repo, provider, apiKey, subject, scope, count, model)
+                }
+                _state.value = _state.value.copy(generating = false, preview = list, offline = apiKey.isBlank())
             } catch (e: Exception) {
                 _state.value = _state.value.copy(generating = false, error = e.message ?: "生成失败")
             }

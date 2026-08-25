@@ -1,9 +1,15 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.PracticeState
+import kotlin.math.*
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +22,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +39,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.GridOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -38,6 +50,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -57,6 +70,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedContent
@@ -82,6 +97,8 @@ import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.CAUSE_OPTIONS
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.LocalPracticeVm
+import com.jiaozi.sz.ui.Motion
+import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.ui.PracticeViewModel
 import com.jiaozi.sz.ui.Screen
 import com.jiaozi.sz.ui.island.IslandBus
@@ -93,6 +110,13 @@ import com.jiaozi.sz.xiaomi.StudyTimerService
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import android.app.Activity
+import android.content.ContextWrapper
 
 @Composable
 fun PracticeScreen(nav: NavHostController) {
@@ -102,8 +126,9 @@ fun PracticeScreen(nav: NavHostController) {
     val st by vm.state.collectAsStateWithLifecycle()
     val islandEnabled by appVm.islandEnabled.collectAsStateWithLifecycle()
 
-    // 灵动岛（上岛）：练习中把进度推到全局悬浮胶囊；若用户已开启灵动岛开关则自动拉起服务
-    LaunchedEffect(st, islandEnabled) {
+    // 灵动岛（上岛）：练习中把进度推到全局悬浮胶囊；若用户已开启灵动岛开关则自动拉起服务。
+    // 依赖键仅取「会改变化胶囊内容」的字段，避免草稿输入等无关 st 变更触发悬浮窗每秒/每键重绘（#77 减重组）。
+    LaunchedEffect(st.results.size, st.total, st.current?.subject, st.finished, st.questions.isNotEmpty(), islandEnabled) {
         if (st.questions.isNotEmpty() && !st.finished) {
             val total = st.total
             val done = st.results.size
@@ -135,12 +160,22 @@ fun PracticeScreen(nav: NavHostController) {
     when {
         st.finished -> SummaryView(vm, st, nav)
         st.questions.isNotEmpty() -> SessionView(vm, st)
-        else -> PracticeHome(vm, appVm, nav)
+        else -> PracticeHome(vm, appVm, nav, st)
     }
 }
 
 @Composable
-private fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHostController) {
+private fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHostController, st: PracticeState) {
+    // 错题本等异步入口的加载态：显示覆盖层，避免「点击无反应」的空白感
+    if (st.loading) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                CircularProgressIndicator()
+                Text("正在准备练习…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+            }
+        }
+        return
+    }
     val disc by appVm.subject3Disc.collectAsStateWithLifecycle()
     val cfg by vm.config.collectAsStateWithLifecycle()
     val repo = appVm.repo
@@ -165,7 +200,7 @@ private fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHos
     val pendingChapter by appVm.pendingChapterPractice.collectAsStateWithLifecycle()
     LaunchedEffect(pendingChapter) {
         pendingChapter?.let { (s, c) ->
-            vm.startChapter(s, c)
+            vm.startChapter(s, c, disc = if (s == "科三") disc else null)
             appVm.clearPendingChapterPractice()
         }
     }
@@ -225,7 +260,7 @@ private fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHos
         // 章节选择
         if (mode == "章节练习") {
             ChapterPicker(repo, disc) { su, ch, sec ->
-                vm.startChapter(su, ch, sec, num)
+                vm.startChapter(su, ch, sec, num, if (su == "科三") disc else null)
             }
         }
 
@@ -441,11 +476,11 @@ private fun AiGenPanel(appVm: AppViewModel, vm: PracticeViewModel) {
             )
             Button(
                 onClick = { aiVm.preview(appVm.aiProvider.value, aiKey, subject, if (subject == "科三") disc else "", count.toIntOrNull() ?: 10, appVm.aiModel.value) },
-                enabled = !aiState.generating && aiKey.isNotBlank()
+                enabled = !aiState.generating
             ) { Text(if (aiState.generating) "生成中…" else "生成题目") }
         }
         if (aiKey.isBlank()) {
-            Text("尚未配置 AI Key，请到「设置」填写。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            Text("未配置 AI Key：将生成内置「离线样例」预览，仅供试用（不会污染同步）。", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
         }
         aiState.error?.let { Text("出错：$it", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error) }
 
@@ -506,8 +541,49 @@ private fun AiGenPanel(appVm: AppViewModel, vm: PracticeViewModel) {
 @Composable
 private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeState) {
     val ctx = LocalContext.current
+    val rm = reduceMotionNow(ctx)
     val q = st.current ?: return
     val isLast = st.isLast
+
+    // 模考·全屏考场沉浸：限时套卷期间隐藏状态栏+导航栏，进入纯考场视野；
+    // 系统返回手势拦截为「二次确认退出」，防手滑中断模考。
+    val isMock = st.timeLimitSec != null && st.timeLimitSec!! > 0
+    var showExitConfirm by remember { mutableStateOf(false) }
+    var showCard by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = true) { showExitConfirm = true }
+    DisposableEffect(isMock) {
+        if (isMock) {
+            ctx.findActivity()?.window?.let { w ->
+                val ctrl = WindowInsetsControllerCompat(w, w.decorView)
+                ctrl.hide(WindowInsetsCompat.Type.systemBars())
+                ctrl.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+        onDispose {
+            ctx.findActivity()?.window?.let { w ->
+                WindowInsetsControllerCompat(w, w.decorView).show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+    if (showExitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirm = false },
+            title = { Text(if (isMock) "离开模考？" else "退出练习？") },
+            text = {
+                Text(
+                    if (isMock) "本场模考尚未完成，离开将按当前进度交卷并结束。"
+                    else "当前练习进度不会自动保存，退出后将回到练习首页（已答进度仍会记入错题本）。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showExitConfirm = false; vm.exitSession() }) { Text(if (isMock) "交卷离开" else "退出") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitConfirm = false }) { Text(if (isMock) "继续答题" else "继续练习") }
+            }
+        )
+    }
 
     // 专注计时由练习「会话」生命周期管理（begin 开 / exitSession、末题、超时、ViewModel 销毁 关），
     // 不再绑定本视图：切到其它 tab 不会停表归零，回来继续累计。
@@ -515,15 +591,18 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
     // 练习页内顶部计时：专注时长与模考倒计时各自收进独立小 Composable，
     // 每秒的读秒只重绘那一小块，不再触发整个 SessionView（含 AnimatedContent + 选项列表）重组，消除卡顿。
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().displayCutoutPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { vm.exitSession() }) {
+                IconButton(onClick = { showExitConfirm = true }) {
                     Icon(appPainter("close"), contentDescription = "退出练习", modifier = Modifier.size(22.dp))
                 }
                 Text("${st.mode} · 第 ${st.index + 1}/${st.total} 题", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
             }
             if (st.timeLimitSec == null) PracticeTimer()
+            IconButton(onClick = { showCard = true }) {
+                Icon(Icons.Rounded.GridOn, contentDescription = "答题卡", modifier = Modifier.size(22.dp))
+            }
         }
 
         LinearProgressIndicator(
@@ -540,8 +619,8 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
             targetState = q.id,
             modifier = Modifier.weight(1f),
             transitionSpec = {
-                (slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn(tween(180)))
-                    .togetherWith(slideOutHorizontally(targetOffsetX = { -it / 4 }) + fadeOut(tween(180)))
+                (slideInHorizontally(initialOffsetX = { it / 4 }) + fadeIn(tween(Motion.duration(rm, Motion.BASE))))
+                    .togetherWith(slideOutHorizontally(targetOffsetX = { -it / 4 }) + fadeOut(tween(Motion.duration(rm, Motion.BASE))))
             },
             label = "questionSwap"
         ) { id ->
@@ -556,7 +635,7 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
                 }
 
                 // 选项/主观题使用 LazyColumn 避免长选项列表卡顿
-                LazyColumn(Modifier.fillMaxSize().padding(bottom = 92.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(Modifier.fillMaxSize().navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (qq.isSubjective) {
                         if (!st.showAnswer) {
                             // 第一步：写草稿
@@ -634,8 +713,8 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
 
         AnimatedVisibility(
             visible = !st.answered,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(120))
+            enter = fadeIn(tween(Motion.duration(rm, Motion.FAST))),
+            exit = fadeOut(tween(Motion.duration(rm, Motion.FAST)))
         ) {
             val canSubmit = if (q.isSubjective) (st.showAnswer && st.subjectiveResult != null) else st.selected >= 0
             Button(
@@ -646,8 +725,8 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
         }
         AnimatedVisibility(
             visible = st.answered,
-            enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 10 }, animationSpec = tween(220)),
-            exit = fadeOut(tween(120)) + slideOutVertically(targetOffsetY = { it / 10 }, animationSpec = tween(120))
+            enter = fadeIn(tween(Motion.duration(rm, Motion.BASE))) + slideInVertically(initialOffsetY = { it / 10 }, animationSpec = tween(Motion.duration(rm, Motion.BASE))),
+            exit = fadeOut(tween(Motion.duration(rm, Motion.FAST))) + slideOutVertically(targetOffsetY = { it / 10 }, animationSpec = tween(Motion.duration(rm, Motion.FAST)))
         ) {
             // 反馈：结果判定 + 解析
             val ok = st.correct
@@ -689,6 +768,60 @@ private fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
                 modifier = Modifier.fillMaxWidth(),
                 enabled = canNext
             ) { Text(if (isLast) "查看结果" else "下一步") }
+        }
+    }
+
+    // 答题卡：题号宫格，按作答态着色，点击跳题；当前题描边高亮 + 图例
+    if (showCard) {
+        ModalBottomSheet(onDismissRequest = { showCard = false }, sheetState = rememberModalBottomSheetState()) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("答题卡", style = MaterialTheme.typography.titleLarge)
+                    Text("${st.results.size}/${st.total} 已答", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+                }
+                LazyVerticalGrid(columns = GridCells.Fixed(6), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(st.total) { i ->
+                        val itemQ = st.questions[i]
+                        val r = st.results[itemQ.id]
+                        val isCurrent = i == st.index
+                        val (bg, fg) = when {
+                            r?.correct == true -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+                            r != null -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurface
+                        }
+                        val statusColor = when {
+                            r?.correct == true -> MaterialTheme.colorScheme.primary
+                            r != null -> MaterialTheme.colorScheme.error
+                            else -> null
+                        }
+                        val border = when {
+                            isCurrent -> BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary)
+                            statusColor != null -> BorderStroke(1.dp, statusColor.copy(alpha = 0.5f))
+                            else -> null
+                        }
+                        Card(
+                            Modifier.fillMaxWidth().aspectRatio(1f)
+                                .clickable { vm.goto(i); showCard = false },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = bg),
+                            border = border
+                        ) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = fg)
+                                    if (isCurrent) Text("当前", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+                // 图例
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    AnswerCardLegend(MaterialTheme.colorScheme.primaryContainer, "答对")
+                    AnswerCardLegend(MaterialTheme.colorScheme.errorContainer, "答错")
+                    AnswerCardLegend(MaterialTheme.colorScheme.surfaceVariant, "未答")
+                }
+            }
         }
     }
 }
@@ -846,6 +979,18 @@ private fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeStat
             }
         }
 
+        // 能力雷达（按科目正确率）
+        val subjAcc = remember(st) {
+            st.questions.groupBy { it.subject }.mapValues { (_, qs) ->
+                val rs = qs.mapNotNull { st.results[it.id] }
+                if (rs.isEmpty()) 0f else rs.count { it.correct }.toFloat() / rs.size
+            }
+        }
+        if (subjAcc.isNotEmpty()) {
+            Text("能力雷达", style = MaterialTheme.typography.titleMedium)
+            RadarChart(subjAcc)
+        }
+
         // 模考：分科报告 + 分数预估
         if (isMock && bySubject.isNotEmpty()) {
             Text("模考分科报告", style = MaterialTheme.typography.titleMedium)
@@ -967,6 +1112,56 @@ private fun ActionButton(text: String, modifier: Modifier = Modifier, onClick: (
     OutlinedButton(onClick = onClick, modifier = modifier) { Text(text) }
 }
 
+/** 答题卡图例：色块 + 文案 */
+@Composable
+private fun AnswerCardLegend(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(
+            Modifier.size(14.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(color)
+        )
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 能力雷达：按科目正确率绘制多边形（自绘 Canvas） */
+@Composable
+private fun RadarChart(data: Map<String, Float>) {
+    if (data.isEmpty()) return
+    val axes = data.keys.toList()
+    val n = axes.size
+    Canvas(Modifier.fillMaxWidth().height(200.dp)) {
+        val cx = size.width / 2
+        val cy = size.height / 2
+        val R = (minOf(size.width, size.height) / 2 - 18.dp.toPx())
+        // 网格环
+        for (ring in 1..4) {
+            val rr = R * ring / 4f
+            val path = Path()
+            for (k in 0..n) {
+                val a = -PI / 2 + 2 * PI * k / n
+                val x = cx + rr * cos(a).toFloat()
+                val y = cy + rr * sin(a).toFloat()
+                if (k == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(path, color = Color.Gray.copy(alpha = 0.25f), style = Stroke(width = 1.dp.toPx()))
+        }
+        // 数据多边形
+        val dpath = Path()
+        data.values.forEachIndexed { i, v ->
+            val a = -PI / 2 + 2 * PI * i / n
+            val rr = R * v.coerceIn(0f, 1f)
+            val x = cx + rr * cos(a).toFloat()
+            val y = cy + rr * sin(a).toFloat()
+            if (i == 0) dpath.moveTo(x, y) else dpath.lineTo(x, y)
+        }
+        dpath.close()
+        drawPath(dpath, color = Color(0xFF7F77DD).copy(alpha = 0.3f))
+        drawPath(dpath, color = Color(0xFF7F77DD), style = Stroke(width = 2.dp.toPx()))
+    }
+}
+
 /** 简易 FlowRow 实现（避免引入额外依赖） */
 @Composable
 private fun FlowRow(
@@ -1018,4 +1213,11 @@ private fun FlowRow(
             }
         }
     }
+}
+
+/** 从 Compose 上下文回溯 Activity（ContextWrapper 链） */
+private fun android.content.Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

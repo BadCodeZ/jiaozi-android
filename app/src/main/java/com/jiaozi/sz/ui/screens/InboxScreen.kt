@@ -1,5 +1,9 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.SectionTitle
+import com.jiaozi.sz.ui.components.StatTile
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,16 +12,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -71,14 +71,25 @@ fun InboxScreen(nav: NavHostController) {
         reset()
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Button(onClick = { if (showForm) reset() else { reset(); showForm = true } }) {
-                Icon(appPainter("plus"), contentDescription = null)
-                Text(if (showForm) "收起" else "添加")
+    val qCount = items.count { it.type == "question" }
+
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HeroHeader(
+            title = "收集箱",
+            subtitle = "随手收集灵感、链接、好题，可同步网页端",
+            icon = appPainter("inbox"),
+            action = {
+                Button(onClick = { if (showForm) reset() else { reset(); showForm = true } }) {
+                    Icon(appPainter("plus"), contentDescription = null)
+                    Text(if (showForm) "收起" else "添加")
+                }
             }
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatTile("收集条目", "${items.size}", Modifier.weight(1f))
+            StatTile("可转题目", "$qCount", Modifier.weight(1f))
         }
-        Text("随手收集灵感、链接、好题；可同步到网页端。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         if (showForm) {
             Card(Modifier.fillMaxWidth()) {
@@ -97,13 +108,14 @@ fun InboxScreen(nav: NavHostController) {
             }
         }
 
+        SectionTitle("收集内容")
         if (items.isEmpty() && !showForm) {
-            Text("收集箱是空的。通勤看到好资料，随手存进来。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+            EmptyHint("inbox", "收集箱是空的", "通勤看到好资料，随手存进来，备考时再整理。")
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
             items(items, contentType = { "inbox" }) { e ->
                 val typeLabel = types.find { it.first == e.type }?.second ?: e.type
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceBetween, Alignment.Top) {
                         Column(Modifier.weight(1f), Arrangement.spacedBy(2.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

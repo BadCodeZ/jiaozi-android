@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -119,21 +120,22 @@ fun AiChatScreen(nav: NavHostController) {
     // 流式输出时跟随逐字生成：同样仅在贴近底部时跟随，用户上滑看前文则不抢滚动
     LaunchedEffect(streaming) { if (streaming != null && isNearBottom) listState.scrollToItem(visible.size) }
 
-    Column(Modifier.fillMaxSize().imePadding().padding(bottom = 80.dp)) {
-        Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.End, Alignment.CenterVertically) {
-            TextButton(onClick = { vm.clearHistory() }) { Text("清空对话"); Icon(appPainter("trash"), contentDescription = null) }
+    Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding().padding(bottom = 16.dp)) {
+        // 顶部操作栏：搜索 + 清空
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                leadingIcon = { Icon(appPainter("search"), contentDescription = null) },
+                placeholder = { Text("搜索历史对话…") },
+                textStyle = MaterialTheme.typography.bodyMedium
+            )
+            IconButton(onClick = { vm.clearHistory() }) {
+                Icon(appPainter("trash"), contentDescription = "清空对话", modifier = Modifier.size(20.dp))
+            }
         }
-
-        // 历史搜索（P4-5）：轻量即时过滤，不阻塞输入
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-            singleLine = true,
-            leadingIcon = { Icon(appPainter("search"), contentDescription = null) },
-            placeholder = { Text("搜索历史对话…") },
-            textStyle = MaterialTheme.typography.bodyMedium
-        )
 
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),

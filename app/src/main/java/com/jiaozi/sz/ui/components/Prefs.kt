@@ -2,15 +2,18 @@ package com.jiaozi.sz.ui.components
 import com.jiaozi.sz.ui.components.appPainter
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -20,9 +23,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * MIUI / HyperOS 风格设置组件，复刻开源库 Miuix（top.yukonga.miuix.kmp）的设置页范式：
@@ -162,7 +176,7 @@ fun PrefChipGroup(
             }
         }
         Row(
-            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             options.forEach { (value, label) ->
@@ -178,3 +192,94 @@ fun PrefChipGroup(
         }
     }
 }
+
+/**
+ * 原地下拉式选择偏好（Material3 DropdownMenu 风，对齐椒盐笔记设置展开范式，全 App 统一操作元素）：
+ * 标题 + 可选副标题（summary）在左，当前值 + 右侧 chevron（展开时旋转 90°）在右；点击后在该行原位置
+ * 靠右浮出小下拉面板（盖在下方内容之上、不重排布局），选中项主色文字 + 右侧对勾，点选即填充并收起。
+ * 适用于所有「单选设置项」（主题 / 配色 / 字体 / 学科 / AI 服务商 / WebDAV 预设等）。
+ */
+@Composable
+fun InlineExpandSelect(
+    title: String,
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+    showDivider: Boolean = true
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 90f else 0f,
+        label = "chevron-rotation"
+    )
+    Box(modifier.fillMaxWidth()) {
+        Column {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = MaterialTheme.typography.bodyLarge)
+                    if (summary != null) {
+                        Text(summary, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                    }
+                }
+                // 右侧锚点：当前值 + chevron 同处一个 Box，DropdownMenu 以它为锚在原位置靠右浮出
+                Box {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            options.firstOrNull { it.first == selected }?.second ?: selected,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            appPainter("chevron"),
+                            contentDescription = if (expanded) "收起" else "展开",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation }
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.widthIn(min = 200.dp)
+                    ) {
+                        options.forEach { (value, label) ->
+                            val isSel = selected == value
+                            DropdownMenuItem(
+                                text = { Text(label, style = MaterialTheme.typography.bodyLarge, color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) },
+                                trailingIcon = if (isSel) {
+                                    {
+                                        Icon(
+                                            appPainter("check"),
+                                            contentDescription = "已选中",
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                } else null,
+                                onClick = {
+                                    onSelect(value)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            if (showDivider) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            }
+        }
+    }
+}
+

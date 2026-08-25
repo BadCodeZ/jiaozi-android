@@ -62,7 +62,8 @@ class StudyWidget : AppWidgetProvider() {
             AssetLoader.loadAutoSyll(context),
             AssetLoader.loadKnowledge(context),
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
-            db.lessonDao(), db.inboxDao(), db.aiChatDao()
+            db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(),
+            db.docIndexDao(), db.proofReviewDao()
         )
     }
 }

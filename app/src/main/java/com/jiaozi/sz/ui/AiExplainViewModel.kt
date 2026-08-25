@@ -31,12 +31,14 @@ class AiExplainViewModel(app: Application) : AndroidViewModel(app) {
     /** 对错题清单生成讲评（对齐网页端 AI 讲评入口） */
     fun explain(provider: String, apiKey: String, items: List<AiExplainEngine.WrongItem>, model: String = "") {
         if (_state.value.explaining) return
-        if (apiKey.isBlank()) {
-            _state.value = _state.value.copy(error = "尚未配置 AI Key，请到「设置」填写后再使用 AI 讲评。")
-            return
-        }
         if (items.isEmpty()) {
             _state.value = _state.value.copy(error = "本次没有错题，无需讲评～")
+            return
+        }
+        // P2-A：无 Key 时走离线讲评模板，不再直接报错
+        if (apiKey.isBlank()) {
+            val t = AiExplainEngine.offlineExplain(items)
+            _state.value = _state.value.copy(explaining = false, error = null, text = t)
             return
         }
         // 命中缓存：直接复用，不调网络

@@ -30,6 +30,8 @@ object MergeEngine {
     private val SPECIAL_OBJS = setOf("meta", "prefs")
     private val ENVELOPE_META = setOf("v", "gen", "createdAt", "subj3")
     private val MAP_COLS = setOf("corrections", "qstat")
+    /** 网页端备份（S 全量）中存在的顶层数据集合，用于识别「无 v 的网页端备份」格式 */
+    private val DATA_COLLECTIONS = setOf("exam", "knowledge", "lesson", "corrections", "qstat", "curric", "books", "syllabus", "papers", "inbox", "drafts", "aiHistory")
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -41,6 +43,30 @@ object MergeEngine {
             throw IllegalArgumentException("同步包版本过高（v$v），请升级应用后再导入。")
         }
         return el
+    }
+
+    /**
+     * 解析导入文件并兼容两种来源：
+     *  ① v2 同步包信封（顶部有 v 字段）——与 [parse] 等价；
+     *  ② 网页端「导出备份」S 全量（顶部无 v，但含 exam/knowledge/... 数据集合）。
+     *     ——补打 v=2 后返回，使下游 MergeEngine.merge / applyEnvelopeToLocal 能按既有信封流程无损合并。
+     * 识别判据：顶层无 v，但存在任一数据集合（exam 等）。若既无 v 也无集合，则视为非法 JSON 抛异常。
+     */
+    fun parseBackup(str: String): JsonObject {
+        val el = json.parseToJsonElement(str)
+        if (el !is JsonObject) throw IllegalArgumentException("同步包不是合法的 JSON 对象")
+        val v = (el["v"] as? JsonPrimitive)?.intOrNull
+        if (v != null) {
+            if (v > MAX_VERSION) throw IllegalArgumentException("同步包版本过高（v$v），请升级应用后再导入。")
+            return el
+        }
+        // 无 v：判断是否为网页端备份格式（存在数据集合字段）
+        val hasData = DATA_COLLECTIONS.any { el[it] != null }
+        if (!hasData) throw IllegalArgumentException("文件不是可识别的备份格式")
+        val mapped = el.toMutableMap()
+        mapped["v"] = JsonPrimitive(ENVELOPE_VERSION)
+        if (el["gen"] == null) mapped["gen"] = JsonPrimitive("artwb")
+        return JsonObject(mapped)
     }
 
     fun serialize(obj: JsonObject): String = json.encodeToString(JsonObject.serializer(), obj)
@@ -111,12 +137,12 @@ object MergeEngine {
     internal fun mergeArrayCollection(name: String, lv: JsonArray, rv: JsonArray): JsonArray {
         val byId = LinkedHashMap<String, JsonObject>()
         for (e in lv) if (e is JsonObject) {
-            val id = e["id"]?.jsonPrimitive?.contentOrNull
+            val id = (e["id"] as? JsonPrimitive)?.contentOrNull
             if (id != null) byId[id] = e
         }
         for (re in rv) {
             if (re !is JsonObject) continue
-            val id = re["id"]?.jsonPrimitive?.contentOrNull ?: continue
+            val id = (re["id"] as? JsonPrimitive)?.contentOrNull ?: continue
             val cur = byId[id]
             if (cur == null) {
                 if ((re["_del"] as? JsonPrimitive)?.booleanOrNull != true) byId[id] = re

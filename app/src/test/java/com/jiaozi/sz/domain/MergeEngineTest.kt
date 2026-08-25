@@ -95,4 +95,39 @@ open class MergeEngineTest {
             assertTrue(e.message!!.contains("版本过高"))
         }
     }
+
+    @Test
+    fun `parseBackup兼容网页端导出备份无v全量格式`() {
+        // 模拟网页端「导出备份」S 全量：顶部无 v，但含 exam 等数据集合
+        val webBackup = """{
+            "exam":[{"id":"w1","q":"题","opt":"[]","subject":"科一","chapter":"ch","_mt":100}],
+            "knowledge":[],"lesson":[],"corrections":{},"qstat":{},
+            "meta":{"version":"2.0","theme":"xiomi"},"prefs":{}
+        }"""
+        val parsed = MergeEngine.parseBackup(webBackup)
+        // 应补打入 v=2，成为合法信封
+        assertEquals(MergeEngine.ENVELOPE_VERSION, (parsed["v"] as JsonPrimitive).int)
+        // 数据保留
+        assertEquals(1, (parsed["exam"] as JsonArray).size)
+        // 再走 merge 应无异常
+        val merged = MergeEngine.merge(MergeEngine.emptyEnvelope("美术"), parsed)
+        assertEquals(1, (merged["exam"] as JsonArray).size)
+    }
+
+    @Test
+    fun `parseBackup兼容v2信封原样通过`() {
+        val env = """{"v":2,"exam":[],"meta":{}}"""
+        val parsed = MergeEngine.parseBackup(env)
+        assertEquals(2, (parsed["v"] as JsonPrimitive).int)
+    }
+
+    @Test
+    fun `parseBackup拒绝无可识别数据且无版本的对象`() {
+        try {
+            MergeEngine.parseBackup("""{"foo":"bar"}""")
+            org.junit.Assert.fail("应当抛出不可识别格式异常")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("不是可识别的备份格式"))
+        }
+    }
 }

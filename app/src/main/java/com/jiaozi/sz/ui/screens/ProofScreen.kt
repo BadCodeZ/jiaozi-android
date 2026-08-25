@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -92,7 +94,7 @@ private fun PendingTab(appVm: AppViewModel, repo: com.jiaozi.sz.data.AppReposito
             if (pendingUnreviewed.isNotEmpty()) {
                 Button(onClick = { appVm.viewModelScope.launch { pendingUnreviewed.forEach { repo.markProofReviewed(it.id) }; reviewed = repo.proofReviewedIds() } }) { Text("全部标记已校订") }
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
                 items(pendingUnreviewed, contentType = { "proof" }) { q -> ProofCard(q, appVm, repo, reviewed) { appVm.viewModelScope.launch { reviewed = repo.proofReviewedIds() } } }
             }
         }
@@ -149,23 +151,42 @@ private fun WrongBookTab(appVm: AppViewModel, repo: com.jiaozi.sz.data.AppReposi
             }
         }) { Icon(appPainter("share"), contentDescription = null); Text(" 导出 PDF / 打印") }
 
+        // 视图切换：错因聚类 / 按科目
+        var viewBy by remember { mutableStateOf("错因") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("错因", "科目").forEach { v -> FilterChip(selected = viewBy == v, onClick = { viewBy = v }, label = { Text(v) }) }
+        }
+
         if (items.isEmpty()) {
             Text("错题本是空的，继续保持！", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)) {
-                items(items, contentType = { "wrong" }) { (q, p) ->
-                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Column(Modifier.padding(12.dp), Arrangement.spacedBy(2.dp)) {
-                            Text("${q.subject} · ${q.chapter}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                            Text(q.q, style = MaterialTheme.typography.bodyMedium)
-                            if (!q.answer.isNullOrBlank()) Text("答案：${q.answer}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                            // 草稿落盘接入历史错题库：展示当时主观题作答（复盘可见）
-                            if (!p.draft.isNullOrBlank()) {
-                                Text("我的作答：${p.draft}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Row(Modifier.fillMaxWidth(), Arrangement.End) {
-                                IconButton(onClick = { appVm.setPendingAiContext(q.q); nav.navigate("aichat") }) {
-                                    Icon(appPainter("chat"), contentDescription = "问 AI", tint = MaterialTheme.colorScheme.primary)
+            val groups = remember(items, viewBy) {
+                val g = when (viewBy) {
+                    "科目" -> items.groupBy { it.first.subject }
+                    else -> items.groupBy { (it.second.cause?.takeIf { c -> c.isNotBlank() } ?: "未标注错因") }
+                }
+                g.toList().sortedByDescending { it.second.size }
+            }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
+                groups.forEach { (key, group) ->
+                    item(key = "h_$key") {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                            Text("$key · ${group.size} 题", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
+                        }
+                    }
+                    items(group, contentType = { "wrong" }) { (q, p) ->
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                            Column(Modifier.padding(12.dp), Arrangement.spacedBy(2.dp)) {
+                                Text("${q.subject} · ${q.chapter}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                Text(q.q, style = MaterialTheme.typography.bodyMedium)
+                                if (!q.answer.isNullOrBlank()) Text("答案：${q.answer}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                if (!p.draft.isNullOrBlank()) {
+                                    Text("我的作答：${p.draft}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Row(Modifier.fillMaxWidth(), Arrangement.End) {
+                                    IconButton(onClick = { appVm.setPendingAiContext(q.q); nav.navigate("aichat") }) {
+                                        Icon(appPainter("chat"), contentDescription = "问 AI", tint = MaterialTheme.colorScheme.primary)
+                                    }
                                 }
                             }
                         }
@@ -185,7 +206,7 @@ private fun ClassifyTab(appVm: AppViewModel, repo: com.jiaozi.sz.data.AppReposit
         if (items.isEmpty()) {
             Text("没有未归类题目。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
                 items(items, contentType = { "classify" }) { e ->
                     var subj by remember { mutableStateOf(e.subject.ifBlank { "科一" }) }
                     var ch by remember { mutableStateOf("") }
@@ -218,7 +239,7 @@ private fun ReviewTab(appVm: AppViewModel, repo: com.jiaozi.sz.data.AppRepositor
         if (hits.isEmpty()) {
             Text("未检出质量问题，待审题解析完整。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
                 items(hits, contentType = { "review" }) { q -> ProofCard(q, appVm, repo, emptySet()) {} }
             }
         }

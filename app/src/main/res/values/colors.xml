@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 自适应图标背景（被 ic_launcher.xml 引用） -->
-    <color name="ic_launcher_background">#0E7C86</color>
+    <!-- 自适应图标背景（被 ic_launcher.xml 引用）：纯白，去除原蓝绿彩色边 -->
+    <color name="ic_launcher_background">#FFFFFF</color>
     <!-- 冷启动窗口背景：贴近浅色主题 surface，消除首帧白屏闪烁 -->
     <color name="launch_bg">#F2F2F4</color>
 </resources>

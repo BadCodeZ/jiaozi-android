@@ -2,6 +2,7 @@ package com.jiaozi.sz.domain
 
 import com.jiaozi.sz.data.local.ProgressEntity
 import com.jiaozi.sz.data.model.Question
+import kotlin.math.roundToInt
 
 /**
  * 练习配置（对齐网页端 PS 状态）。
@@ -38,6 +39,7 @@ object PracticeEngine {
             }
             "薄弱优先" -> weak(all, progress, Int.MAX_VALUE)
             "仅复习" -> due(all, progress)
+            "错题本" -> wrong(all, progress)
             "错因强化" -> cause(all, progress, config.cause ?: "")
             "随机全科" -> all
             else -> all
@@ -86,17 +88,48 @@ object PracticeEngine {
         questions.filter { progress[it.id]?.wrongBook == true }.shuffled().take(limit)
 
     /**
-     * 全科模考蓝图：按章节权重抽 50 题，科一/科二/科三 ≈ 33/33/34%。
-     * 科三取当前 disc 且不串其他学科；卷内无重复。
+     * 章节配置键：唯一标识「科目-学科-章节」。科三区分 disc（不同学科同名章不冲突）。
+     * 与 AppViewModel.saveChapterConfig / ChaptersScreen 保存键保持一致。
      */
-    fun blueprint(questions: List<Question>, disc: String, count: Int = 50): List<Question> {
+    fun chapterKey(subject: String, disc: String?, chapter: String): String =
+        if (subject == "科三" && disc != null) "科三|$disc|$chapter" else "$subject|$chapter"
+
+    /**
+     * 全科模考蓝图：按章节权重抽 count 题，科一/科二/科三 ≈ 33/33/34%。
+     * 科三取当前 disc 且不串其他学科；卷内无重复。
+     * weights 为空（用户未配置）时退化为均匀 shuffle，行为与旧版一致。
+     */
+    fun blueprint(questions: List<Question>, disc: String, count: Int = 50, weights: Map<String, Double> = emptyMap()): List<Question> {
         val k1 = questions.filter { it.subject == "科一" }
         val k2 = questions.filter { it.subject == "科二" }
         val k3 = questions.filter { it.subject == "科三" && it.disc == disc }
         val n1 = (count * 0.33f).toInt()
         val n2 = (count * 0.33f).toInt()
         val n3 = count - n1 - n2
-        return pick(k1, n1) + pick(k2, n2) + pick(k3, n3)
+        return pickWeighted(k1, n1, weights, null) +
+               pickWeighted(k2, n2, weights, null) +
+               pickWeighted(k3, n3, weights, disc)
+    }
+
+    /**
+     * 按章节权重在该科目内分配配额并抽样；权重为空则均匀 shuffle。
+     * 配额按章权重比例取整，差额随机补足，保证总题数接近 total。
+     */
+    private fun pickWeighted(pool: List<Question>, total: Int, weights: Map<String, Double>, disc: String?): List<Question> {
+        if (total <= 0 || pool.isEmpty()) return emptyList()
+        if (weights.isEmpty()) return pool.shuffled().take(total)
+        val groups = pool.groupBy { chapterKey(it.subject, it.disc, it.chapter) }
+        val W = groups.keys.sumOf { weights[it] ?: 1.0 }.coerceAtLeast(1e-9)
+        val quotas = groups.mapValues { (k, _) -> maxOf(0, (total * (weights[k] ?: 1.0) / W).roundToInt()) }
+        val picked = groups.map { (k, list) ->
+            list.shuffled().take((quotas[k] ?: 0).coerceAtMost(list.size))
+        }.flatten().toMutableList()
+        var deficit = total - picked.size
+        if (deficit > 0) {
+            val remain = pool.filter { it !in picked }
+            picked.addAll(remain.shuffled().take(deficit))
+        }
+        return picked.shuffled()
     }
 
     /** 穿插混合：按科目交替排列，提升区分力 */
@@ -110,6 +143,5 @@ object PracticeEngine {
         return out
     }
 
-    private fun pick(list: List<Question>, n: Int): List<Question> =
-        if (n <= 0) emptyList() else list.shuffled().take(n)
 }
+

@@ -55,4 +55,19 @@ $lines
             put("temperature", 0.6)
             put("max_tokens", 800)
         }.toString()
+
+    /**
+     * 离线讲评（P2-A）：无 Key 时基于错因列表生成通用复习建议模板，使「AI 讲评」首开可用、不再报错。
+     */
+    fun offlineExplain(items: List<WrongItem>): String {
+        val causes = items.flatMap { it.cause.split(",").map { c -> c.trim() }.filter { it.isNotBlank() } }
+            .groupingBy { it }.eachCount().toList().sortedByDescending { it.second }
+        val top = if (causes.isNotEmpty()) causes.joinToString("、") { "${it.first}(${it.second})" } else "暂未归类"
+        return buildString {
+            append("（离线模式 · 未配置 AI Key，以下为通用复习建议）\n\n")
+            append("一、错因概览：本次 ${items.size} 道错题，高频错因依次为：$top。\n")
+            append("二、复习建议：① 针对高频错因回归对应章节精讲，先厘清概念再刷题；② 同类题再练 3 道巩固；③ 用「错题本」按错因归类、间隔复习。\n")
+            append("三、纵向回顾：把错题关联到共同知识点后，优先补强薄弱模块。配置 AI Key 后可由模型给出逐题精准讲评。")
+        }
+    }
 }

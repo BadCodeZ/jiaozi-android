@@ -93,6 +93,42 @@ object AiGenEngine {
         for (e in list) repo.upsertUserQuestion(e)
     }
 
+    /**
+     * 离线出题样例（P2-A：对齐网页端 localAIGenerate 离线分支）。无 AI Key 时返回 2 道内置示例题，
+     * 标注「离线样例」，使 AI 题库首开即可试用、不再只有报错。覆盖所选科目/章节的通用考点。
+     */
+    fun offlineGenerate(subject: String, scope: String, count: Int): List<UserQuestionEntity> {
+        val where = if (subject == "科三") scope.ifBlank { "学科" } else subject
+        val tag = "【离线样例·$where】"
+        val samples = listOf(
+            UserQuestionEntity(
+                id = "__off_" + System.currentTimeMillis() + "_1",
+                subject = subject,
+                chapter = if (subject == "科三") "" else scope.ifBlank { "通用" },
+                section = null,
+                q = "$tag 下列关于${where}核心概念的简述，哪一项最符合教育学的经典表述？",
+                opt = "A. 选项一 B. 选项二 C. 选项三 D. 选项四",
+                answer = "C",
+                analysis = "（离线样例，仅供体验出题格式）真实题目需配置 AI Key 后由模型生成，解析会更贴合具体考点。",
+                disc = if (subject == "科三") scope.ifBlank { null } else null,
+                flag = "待审", flagMsg = "离线样例", _mt = System.currentTimeMillis()
+            ),
+            UserQuestionEntity(
+                id = "__off_" + System.currentTimeMillis() + "_2",
+                subject = subject,
+                chapter = if (subject == "科三") "" else scope.ifBlank { "通用" },
+                section = null,
+                q = "$tag 请简述${where}中「因材施教」原则在教学中的具体体现（主观题，自判）。",
+                opt = "",
+                answer = "",
+                analysis = "（离线样例）答题要点：依据学生个别差异调整内容/方法/进度；真实题目由 AI 生成并附参考答案。",
+                disc = if (subject == "科三") scope.ifBlank { null } else null,
+                flag = "待审", flagMsg = "离线样例", _mt = System.currentTimeMillis()
+            )
+        )
+        return samples.take(count.coerceAtLeast(1))
+    }
+
     private fun buildPrompt(subject: String, scope: String, count: Int): String {
         val where = if (subject == "科三") "学科「$scope」（科三）" else "科目「$subject」${if (scope.isNotBlank()) "章节「$scope」" else ""}"
         return """

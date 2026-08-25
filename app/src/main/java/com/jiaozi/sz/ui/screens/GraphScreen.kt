@@ -3,12 +3,14 @@ package com.jiaozi.sz.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +20,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -110,16 +113,41 @@ fun GraphScreen(nav: NavHostController) {
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
-    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             subjects.forEach { s ->
                 FilterChip(selected = subj == s, onClick = { subj = s }, label = { Text(s) })
             }
         }
 
+        // 掌握度概览：章节数 / 已练 / 薄弱
+        val practicedN = chapterAcc.values.count { (r, w) -> (r + w) > 0 }
+        val weakN = chapterAcc.values.count { (r, w) -> (r + w) > 0 && r.toFloat() / (r + w) < 0.5f }
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+            Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceEvenly) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("${chapters.size}", style = MaterialTheme.typography.titleMedium)
+                    Text("章节", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$practicedN", style = MaterialTheme.typography.titleMedium)
+                    Text("已练", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$weakN", style = MaterialTheme.typography.titleMedium, color = if (weakN > 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                    Text("薄弱", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
+
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Text("双指缩放 / 拖动查看；节点过密可放大", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-            TextButton(onClick = { scale = 1f; offset = Offset.Zero }) { Text("重置") }
+            Text("双指捏合缩放 · 单指拖动 · 双击复位", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { scale = (scale * 0.8f).coerceIn(0.6f, 4f) }) { Text("−", style = MaterialTheme.typography.titleMedium) }
+                Text("${(scale * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                IconButton(onClick = { scale = (scale * 1.25f).coerceIn(0.6f, 4f) }) { Text("+", style = MaterialTheme.typography.titleMedium) }
+                TextButton(onClick = { scale = 1f; offset = Offset.Zero }) { Text("重置") }
+            }
         }
 
         // 放射图（题 ↔ 知识 节点），支持双指缩放 + 拖动平移（章节多时不拥挤）
@@ -129,7 +157,15 @@ fun GraphScreen(nav: NavHostController) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         scale = (scale * zoom).coerceIn(0.6f, 4f)
                         offset = Offset(offset.x + pan.x, offset.y + pan.y)
+                        // 平移夹紧：防止图谱被拖出可视区而丢失（只能重置找回）。
+                        // 注意：scale<1 时 (scale-1) 为负，必须先 clamp 到 >=0，否则 maxX 变负、范围翻转导致 coerceIn 抛异常。
+                        val maxX = ((scale - 1) * size.width * 0.5f).coerceAtLeast(0f) + 60f
+                        val maxY = ((scale - 1) * size.height * 0.5f).coerceAtLeast(0f) + 60f
+                        offset = Offset(offset.x.coerceIn(-maxX, maxX), offset.y.coerceIn(-maxY, maxY))
                     }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(onDoubleTap = { scale = 1f; offset = Offset.Zero })
                 }
         ) {
             val w = size.width; val h = size.height

@@ -16,7 +16,15 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -52,12 +60,19 @@ fun StatsScreen(nav: NavHostController) {
     val practiced = remember(progress) { StatsCalculator.totalPracticed(progress) }
     val mastery = remember(progress) { StatsCalculator.masteryRate(progress) }
     val wrongCount = remember(progress) { progress.values.count { it.wrongBook } }
+    // 章节掌握度（供「科目」Tab 热力）
+    val chapterAcc = remember(progress, questions) {
+        questions.groupBy { it.chapter }.mapNotNull { (chap, qs) ->
+            val done = qs.count { progress[it.id] != null }
+            if (done == 0) null else chap to (qs.count { progress[it.id]?.lastResult == "right" }.toFloat() / done)
+        }
+    }
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("学习统计", style = MaterialTheme.typography.headlineSmall)
+        Text("学习统计", style = MaterialTheme.typography.headlineMedium)
 
         // 概览卡片（4 项核心指标）
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -77,6 +92,14 @@ fun StatsScreen(nav: NavHostController) {
             }
         }
 
+        var tab by remember { mutableStateOf(0) }
+        val tabTitles = listOf("总览", "趋势", "科目")
+        TabRow(selectedTabIndex = tab) {
+            tabTitles.forEachIndexed { i, t -> Tab(selected = tab == i, onClick = { tab = i }, text = { Text(t) }) }
+        }
+
+        when (tab) {
+            0 -> {
         // 目标分差（对齐网页端统计「与目标分差」）
         val targetScore by appVm.targetScore.collectAsStateWithLifecycle()
         var targetInput by remember { mutableStateOf(targetScore.toString()) }
@@ -111,26 +134,6 @@ fun StatsScreen(nav: NavHostController) {
                         appVm.setTargetScore(v)
                         targetInput = v.toString()
                     }) { Text("设定目标") }
-                }
-            }
-        }
-
-        Text("各科目正确率", style = MaterialTheme.typography.titleMedium)
-        if (accBySubject.isEmpty()) {
-            Text("还没有练习记录，去「练习」做几题吧～", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-        } else {
-            accBySubject.forEach { (subj, acc) ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                            Text(subj, style = MaterialTheme.typography.labelMedium)
-                            Text("${(acc * 100).toInt()}%", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                        }
-                        LinearProgressIndicator(
-                            progress = { acc.coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth().height(8.dp)
-                        )
-                    }
                 }
             }
         }
@@ -182,19 +185,12 @@ fun StatsScreen(nav: NavHostController) {
             }.getOrNull()
         }
 
+            }
+            1 -> {
         if (trend.isNotEmpty()) {
             Text("近 14 天练习趋势", style = MaterialTheme.typography.titleMedium)
-            trend.forEach { d ->
-                val total = d.right + d.wrong
-                val acc = if (total == 0) 0f else d.right.toFloat() / total
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(d.date.takeLast(5), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline, modifier = Modifier.width(48.dp))
-                    Box(Modifier.weight(1f).padding(end = 8.dp)) {
-                        LinearProgressIndicator(progress = { acc }, modifier = Modifier.fillMaxWidth().height(6.dp))
-                    }
-                    Text("对${d.right}/错${d.wrong}", style = MaterialTheme.typography.labelSmall)
-                }
-            }
+            val bars = daily.map { Triple(it.date.takeLast(5), it.right, it.wrong) }
+            TrendChart(bars)
             val recent = trend.takeLast(7)
             val recentAcc = if (recent.isEmpty()) 0f else recent.sumOf { it.right }.toFloat() / recent.sumOf { it.right + it.wrong }.coerceAtLeast(1)
             val recentDays = recent.count { it.right + it.wrong > 0 }
@@ -209,6 +205,33 @@ fun StatsScreen(nav: NavHostController) {
                 Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.padding(12.dp))
             }
         }
+
+            } // end tab1
+            2 -> {
+                Text("各科目正确率", style = MaterialTheme.typography.titleMedium)
+                if (accBySubject.isEmpty()) {
+                    Text("还没有练习记录，去「练习」做几题吧～", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                } else {
+                    accBySubject.forEach { (subj, acc) ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                                    Text(subj, style = MaterialTheme.typography.labelMedium)
+                                    Text("${(acc * 100).toInt()}%", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                                }
+                                LinearProgressIndicator(
+                                    progress = { acc.coerceIn(0f, 1f) },
+                                    modifier = Modifier.fillMaxWidth().height(8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text("章节掌握度热力", style = MaterialTheme.typography.titleMedium)
+                HeatGrid(chapterAcc)
+            } // end tab2
+        } // end when
     }
 }
 
@@ -218,6 +241,74 @@ private fun SummaryCard(label: String, value: String, modifier: Modifier = Modif
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
             Text(value, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+/** 近 14 天练习趋势：柱状（题量）+ 折线（正确率），自绘 Canvas */
+@Composable
+private fun TrendChart(bars: List<Triple<String, Int, Int>>) {
+    if (bars.isEmpty()) return
+    val maxTotal = (bars.maxOfOrNull { it.second + it.third } ?: 1).coerceAtLeast(1)
+    Canvas(Modifier.fillMaxWidth().height(150.dp)) {
+        val n = bars.size
+        val gap = 6.dp.toPx()
+        val barW = (size.width - gap * (n - 1)) / n
+        val baseY = size.height - 22.dp.toPx()
+        val top = 8.dp.toPx()
+        val usableH = baseY - top
+        // 柱：题量
+        bars.forEachIndexed { i, (_, right, wrong) ->
+            val total = right + wrong
+            val h = (total.toFloat() / maxTotal) * usableH
+            val x = i * (barW + gap)
+            drawRect(
+                color = Color(0xFF7F77DD),
+                topLeft = Offset(x, baseY - h),
+                size = Size(barW, h)
+            )
+        }
+        // 折线：正确率
+        val pts = bars.mapIndexed { i, (_, right, wrong) ->
+            val total = right + wrong
+            val acc = if (total == 0) 0f else right.toFloat() / total
+            Offset(i * (barW + gap) + barW / 2, baseY - acc * usableH)
+        }
+        if (pts.size > 1) {
+            val path = Path().apply {
+                moveTo(pts.first().x, pts.first().y)
+                pts.drop(1).forEach { lineTo(it.x, it.y) }
+            }
+            drawPath(path, color = Color(0xFF0F6E56), style = Stroke(width = 2.dp.toPx()))
+        }
+    }
+}
+
+/** 章节掌握度热力：按正确率着色的章节卡片行 */
+@Composable
+private fun HeatGrid(items: List<Pair<String, Float>>) {
+    if (items.isEmpty()) {
+        Text("还没有足够练习数据，先做几题，这里会显示各章节掌握度。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        items.sortedBy { it.second }.forEach { (chap, acc) ->
+            val color = when {
+                acc >= 0.8f -> MaterialTheme.colorScheme.primaryContainer
+                acc >= 0.6f -> MaterialTheme.colorScheme.secondaryContainer
+                else -> MaterialTheme.colorScheme.errorContainer
+            }
+            val onColor = when {
+                acc >= 0.8f -> MaterialTheme.colorScheme.onPrimaryContainer
+                acc >= 0.6f -> MaterialTheme.colorScheme.onSecondaryContainer
+                else -> MaterialTheme.colorScheme.onErrorContainer
+            }
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = color)) {
+                Row(Modifier.fillMaxWidth().padding(10.dp, 8.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                    Text(chap, style = MaterialTheme.typography.labelMedium, color = onColor, modifier = Modifier.weight(1f))
+                    Text("${(acc * 100).toInt()}%", style = MaterialTheme.typography.labelMedium, color = onColor)
+                }
+            }
         }
     }
 }

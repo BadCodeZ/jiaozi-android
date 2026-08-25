@@ -2,10 +2,21 @@ package com.jiaozi.sz
 
 import android.app.Application
 import android.os.Build
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.jiaozi.sz.data.AppRepository
+import com.jiaozi.sz.data.BackupManager
 import com.jiaozi.sz.data.local.AppDatabase
 import com.jiaozi.sz.data.AssetLoader
 import com.jiaozi.sz.data.model.Bank
+import com.jiaozi.sz.data.remote.WebDavWorker
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -18,6 +29,9 @@ class App : Application() {
     /** 启动期数据加载错误（降级后填充，供 UI 提示）；正常为 null */
     var loadError: String? = null
         private set
+
+    /** 后台协程作用域（IO），用于启动自动快照等非关键任务 */
+    private val bgScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun onCreate() {
         super.onCreate()
@@ -43,8 +57,31 @@ class App : Application() {
         repository = AppRepository(
             bank, syllabus, autoSyll, knowledge,
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
-            db.lessonDao(), db.inboxDao(), db.aiChatDao()
+            db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(), db.docIndexDao(),
+            db.proofReviewDao()
         )
+
+        // 启动自动快照（约 24h 一次，滚动保留 7 份）：单机安全网，失败静默忽略
+        bgScope.launch { runCatching { BackupManager.maybeAutoSnapshot(this@App, repository) } }
+        // 首启/迁移后回填全文检索索引（仅当索引为空且源数据存在；幂等，失败静默忽略）
+        bgScope.launch { runCatching { repository.rebuildDocIndex() } }
+        // v8→v9 存量回填：旧 meta `proof_reviewed` 逗号串迁入新 proof_review 表（幂等，失败静默忽略）
+        bgScope.launch { runCatching { repository.migrateProofReviewFromMetaIfNeeded() } }
+
+        // WebDAV 周期自动备份：每 12h 由 WorkManager 触发一次（仅联网时），受「启用同步」开关约束
+        scheduleWebDavPeriodic()
+    }
+
+    /** 注册唯一周期任务：已在跑则 UPDATE 覆盖，避免重复堆叠 */
+    private fun scheduleWebDavPeriodic() {
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+        val req = PeriodicWorkRequestBuilder<WebDavWorker>(12, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .build()
+        WorkManager.getInstance(this)
+            .enqueueUniquePeriodicWork("webdav_periodic", ExistingPeriodicWorkPolicy.UPDATE, req)
     }
 
     private fun recordLoadError(tag: String, e: Throwable) {

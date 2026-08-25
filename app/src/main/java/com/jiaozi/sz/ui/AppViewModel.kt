@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiaozi.sz.App
 import com.jiaozi.sz.data.AppRepository
+import com.jiaozi.sz.data.ChapterCfg
 import com.jiaozi.sz.data.MetaKeys
+import com.jiaozi.sz.data.model.LessonTemplate
 import com.jiaozi.sz.data.Repository
 import com.jiaozi.sz.data.local.ProgressEntity
 import com.jiaozi.sz.data.remote.SyncState
@@ -88,7 +90,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _islandEnabled = MutableStateFlow(false) // 灵动岛（上岛）开关
     val islandEnabled: StateFlow<Boolean> = _islandEnabled.asStateFlow()
 
-    private val _fontScale = MutableStateFlow("md") // sm / md / lg / xl
+    private val _fontScale = MutableStateFlow("lg") // sm / md / lg / xl（默认 lg：新用户大字可读性，老用户已存偏好不受影响）
     val fontScale: StateFlow<String> = _fontScale.asStateFlow()
 
     private val _checkinStreak = MutableStateFlow(0)
@@ -121,14 +123,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val webDavEncrypt: StateFlow<Boolean> = _webDavEncrypt.asStateFlow()
     private val _webDavSyncPass = MutableStateFlow("")
     val webDavSyncPass: StateFlow<String> = _webDavSyncPass.asStateFlow()
+
+    // Pro 会员（诚信付费）状态：本地记录激活标记，不联网验单，靠用户自觉
+    private val _isPro = MutableStateFlow(false)
+    val isPro: StateFlow<Boolean> = _isPro.asStateFlow()
     private val _webDavMode = MutableStateFlow("two-way")
     val webDavMode: StateFlow<String> = _webDavMode.asStateFlow()
 
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle)
     val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
+    /** 上次成功同步时间戳（P2-C 增量水位展示用） */
+    private val _lastSyncAt = MutableStateFlow(0L)
+    val lastSyncAt: StateFlow<Long> = _lastSyncAt.asStateFlow()
+
     private val _progressMap = MutableStateFlow<Map<String, ProgressEntity>>(emptyMap())
     val progressMap: StateFlow<Map<String, ProgressEntity>> = _progressMap.asStateFlow()
+
+    /** 章节配置（显示名 + 模考权重），供章节编辑页与模考蓝图消费 */
+    private val _chapterConfig = MutableStateFlow<Map<String, ChapterCfg>>(emptyMap())
+    val chapterConfig: StateFlow<Map<String, ChapterCfg>> = _chapterConfig.asStateFlow()
+
+    /** 备课用户模板库（存 meta），供模板库页与编辑器消费 */
+    private val _lessonTemplates = MutableStateFlow<List<LessonTemplate>>(emptyList())
+    val lessonTemplates: StateFlow<List<LessonTemplate>> = _lessonTemplates.asStateFlow()
 
     /** 启动期数据加载错误（来自 Application 降级），供 UI 提示；正常为 null */
     private val _loadError = MutableStateFlow<String?>(null)
@@ -150,7 +168,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _dynamicColor.value = repo.getMeta(MetaKeys.DYNAMIC_COLOR) == "true"
                 _islandEnabled.value = repo.getMeta(MetaKeys.ISLAND_ENABLED) == "true"
                 _onboarded.value = repo.getMeta(MetaKeys.ONBOARDED) == "true"
-                _fontScale.value = repo.getMeta(MetaKeys.FONT_SCALE) ?: "md"
+                _fontScale.value = repo.getMeta(MetaKeys.FONT_SCALE) ?: "lg"
                 _checkinStreak.value = repo.getMeta(MetaKeys.CHECKIN_STREAK)?.toIntOrNull() ?: 0
                 _syncEnabled.value = repo.getMeta(MetaKeys.SYNC_ENABLED) == "true"
                 _aiKey.value = repo.getMeta(MetaKeys.AI_KEY) ?: ""
@@ -163,6 +181,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _webDavMode.value = repo.getMeta(MetaKeys.WEBDAV_DIRMODE) ?: "two-way"
                 _webDavEncrypt.value = repo.getMeta(MetaKeys.SYNC_ENCRYPT) == "true"
                 _webDavSyncPass.value = repo.getMeta(MetaKeys.SYNC_PASS) ?: ""
+                _lastSyncAt.value = repo.getMeta(MetaKeys.LAST_SYNC_AT)?.toLongOrNull() ?: 0
+                _isPro.value = repo.getMeta(MetaKeys.PRO_ACTIVATED) == "true"
+                _chapterConfig.value = repo.getChapterConfig()
+                _lessonTemplates.value = repo.getLessonTemplates()
 
                 // 进度增量订阅：Room 写入后自动推送，练习后今日/统计实时刷新
                 repo.progressFlow()
@@ -194,6 +216,38 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setOnboarded(v: Boolean) {
         _onboarded.value = v
         viewModelScope.launch { repo.setMeta(MetaKeys.ONBOARDED, v.toString()) }
+    }
+
+    /** 诚信激活 Pro 会员：本地记录标记，不联网验单。具体解锁哪些功能由各处门禁（appVm.isPro）决定。 */
+    fun activatePro() {
+        _isPro.value = true
+        viewModelScope.launch { repo.setMeta(MetaKeys.PRO_ACTIVATED, "true") }
+    }
+
+    /** 撤销 Pro 激活（调试/退款场景），仅本地清标记。 */
+    fun deactivatePro() {
+        _isPro.value = false
+        viewModelScope.launch { repo.setMeta(MetaKeys.PRO_ACTIVATED, "false") }
+    }
+
+    /** 保存单章节配置（显示名 + 模考权重）。整体覆盖该 key 后写回 meta 并刷新 StateFlow。 */
+    fun saveChapterConfig(key: String, name: String, weight: Double) {
+        val next = _chapterConfig.value.toMutableMap()
+        next[key] = ChapterCfg(name = name, weight = weight)
+        _chapterConfig.value = next
+        viewModelScope.launch { repo.saveChapterConfig(next) }
+    }
+
+    // —— 备课模板库 ——
+    fun saveLessonTemplate(t: LessonTemplate) {
+        val next = (_lessonTemplates.value.filter { it.id != t.id } + t).sortedBy { it.name }
+        _lessonTemplates.value = next
+        viewModelScope.launch { repo.saveLessonTemplates(next) }
+    }
+    fun deleteLessonTemplate(id: String) {
+        val next = _lessonTemplates.value.filter { it.id != id }
+        _lessonTemplates.value = next
+        viewModelScope.launch { repo.saveLessonTemplates(next) }
     }
 
     fun toggleKnowledgeFav(id: String) {
@@ -303,7 +357,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             _syncState.value = SyncState.Syncing("准备中…")
             WebDavSync.sync(cfg, repo) { st ->
                 _syncState.value = st
-                if (st is SyncState.Success) refreshProgress()
+                if (st is SyncState.Success) {
+                    refreshProgress()
+                    viewModelScope.launch { _lastSyncAt.value = repo.getMeta(MetaKeys.LAST_SYNC_AT)?.toLongOrNull() ?: 0L }
+                }
             }
         }
     }

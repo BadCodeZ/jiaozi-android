@@ -1,0 +1,7 @@
+{
+  "versionCode": 79,
+  "versionName": "2.77",
+  "downloadUrl": "https://github.com/BadCodeZ/jiaozi-android/releases/tag/v2.77",
+  "changelog": "新增：更新检测（GitHub 联网版本比对）\n新增：Pro 诚信付费框架（会员激活 + 门禁预留）",
+  "forceUpdate": false
+}

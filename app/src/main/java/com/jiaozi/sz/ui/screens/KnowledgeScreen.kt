@@ -1,5 +1,9 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.SectionTitle
+import com.jiaozi.sz.ui.components.StatTile
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -7,15 +11,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Favorite
-import androidx.compose.material.icons.rounded.FavoriteBorder
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -44,6 +45,7 @@ import com.jiaozi.sz.ui.LocalAppVm
  * 知识库（对齐网页端 `VIEW.knowledge`）：分类 chips + 搜索 + 卡片列表。
  * 知识卡为静态种子（knowledge.json），支持按分类筛选与全文搜索；
  * 收藏/到期复习标记通过 meta 持久化（轻量，不影响题库进度）。
+ * 重构（V2.60）：渐变 Hero 头部 + 统计格 + surfaceVariant 浏览卡。
  */
 @Composable
 fun KnowledgeScreen(nav: NavHostController) {
@@ -64,8 +66,17 @@ fun KnowledgeScreen(nav: NavHostController) {
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("先学知识，再练题目——备考的输入侧。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val favCount = favState.size
+    val catCount = (cats.size - 1).coerceAtLeast(0)
+
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HeroHeader(title = "知识库", subtitle = "先学知识，再练题目——备考的输入侧", icon = appPainter("book"))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatTile("知识卡", "${all.size}", Modifier.weight(1f))
+            StatTile("分类", "$catCount", Modifier.weight(1f))
+            StatTile("已收藏", "$favCount", Modifier.weight(1f))
+        }
 
         OutlinedTextField(
             value = query,
@@ -87,12 +98,13 @@ fun KnowledgeScreen(nav: NavHostController) {
             }
         }
 
+        SectionTitle("知识卡")
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().weight(1f).padding(bottom = 92.dp)
+            modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()
         ) {
             if (all.isEmpty()) {
-                item { Text("知识库为空。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline) }
+                item { EmptyHint("book", "知识库为空", "导入或收藏知识卡，备考随手查。") }
             } else if (filtered.isEmpty()) {
                 item { Text("没有匹配的知识卡。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline) }
             } else {
@@ -104,8 +116,8 @@ fun KnowledgeScreen(nav: NavHostController) {
 
 @Composable
 private fun KnowledgeBrowseCard(k: Knowledge, fav: Boolean, onFav: () -> Unit) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Column(Modifier.padding(12.dp), Arrangement.spacedBy(4.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(k.cat, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 IconButton(onClick = onFav) {

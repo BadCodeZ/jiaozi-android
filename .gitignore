@@ -24,3 +24,5 @@ local.properties
 
 # 临时文件
 *.tmp
+*.bak
+*.bak_fix
