@@ -8,6 +8,8 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,33 +19,40 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jiaozi.sz.ui.components.AppColors
 
 /**
- * HyperOS（小米澎湃）风格主题。
+ * 教资备考平台主题（HyperOS 风格 + 企鹅蓝主色）。
  *
- * 配色/圆角/字体刻度 1:1 参考开源库 Miuix（top.yukonga.miuix.kmp，Apache-2.0，
- * https://github.com/compose-miuix-ui/miuix）—— 目前社区最权威的 HyperOS Compose 复刻。
- * 因本工程 Kotlin 1.9 / Compose BOM 2024.06 与 Miuix(Kotlin 2.x) 不兼容，故手动还原其 token，
- * 而非直接依赖该库，以保证已能跑通的构建稳定。
+ * 配色/圆角/字体刻度 1:1 参考开源库 Miuix（top.yukonga.miuix.kmp，Apache-2.0）。
+ * 因本工程 Kotlin 1.9 / Compose BOM 2024.06 与 Miuix(Kotlin 2.x) 不兼容，故手动还原其 token。
  *
- * - 动态取色：默认关闭，固定 HyperOS 品牌蓝（0xFF3482FF），保证在任何壁纸下都是统一的小米蓝；
- *   用户可在设置里手动开启“跟随系统壁纸取色”。
- * - 字体：使用 FontFamily.Default（系统默认）。在小米设备上系统默认即 MiSans，自动获得原生观感；
- *   非小米设备回退系统字体，保证兼容。
- * - 圆角：卡片默认 20dp（Material3 medium），大容器 28dp，呼应 HyperOS“全局圆角”。
+ * - 主色：统一「企鹅蓝」（亮 0xFF3B8CF7 / 暗 0xFF6E96BF）。2026-09-22 按杰哥裁定把亮色档由 0xFF1A5BB5 提亮为 Hero 主体色 0xFF3B8CF7（全站一蓝）；更早 2026-09-19 曾由 0xFF305070 校正为 0xFF1A5BB5（原值偏灰暗）；全站唯一品牌色，不再提供多余美术主题包；
+ *   用户可在设置里手动开启“跟随系统壁纸取色”（dynamicColor）覆盖主色。
+ * - 字体：使用 FontFamily.Default（系统默认）。
+ * - 圆角：卡片默认 20dp（Material3 medium），大容器 28dp。
  */
 
-// —— HyperOS 品牌蓝（Miuix lightColorScheme）——
+// —— 企鹅蓝主色（亮）——
 private val HyperLight = lightColorScheme(
-    primary = Color(0xFF3482FF),
+    // 🔴 2026-09-22 杰哥裁定「换成现在这个蓝色，全局都换」：主色由 #1A5BB5 提亮为
+    //    Hero 渐变主体色 #3B8CF7（稿内实测 (59,140,247)）⇒ 全站按钮/chip/选中态与 Hero 同色，视觉一蓝。
+    //    更早沿革：2026-09-19 曾按高保真稿把 #305070（H206 S40 L31，偏灰暗）校正为 #1A5BB5。
+    //    浅蓝底 primaryContainer 仍为 #EAF1FE（未在本次裁定范围内）。
+    primary = Color(0xFF3B8CF7),
     onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFE8F1FF),
-    onPrimaryContainer = Color(0xFF0B3D91),
+    primaryContainer = Color(0xFFEAF1FE),
+    onPrimaryContainer = Color(0xFF0B2E5C),
     secondary = Color(0xFFE6E6E6),
     onSecondary = Color(0xFF000000),
-    secondaryContainer = Color(0xFFF0F0F0),
-    onSecondaryContainer = Color(0xFF000000),
-    tertiary = Color(0xFF5D9BFF),
+    // 🔴 2026-09-21 按高保真稿校正（11/12/13/08 号「筛选 chips」）：M3 FilterChip 选中态容器取
+    //    secondaryContainer。原值 #F0F0F0 灰 ⇒ 全站选中 chip 呈灰底（设置/备课组/教案模板/搜索…），
+    //    与稿实测「选中 = 企鹅蓝实底白字、未选 = 浅灰底」不符，也与 13 号知识库显式 blue 口径不一致。
+    //    统一为 primary 蓝 / onPrimary 白字。secondaryContainer 仅被 FilterChip 消费，无其他组件引用。
+    // 🔴 2026-09-22 随主色提亮：同步 #1A5BB5 → #3B8CF7，保持 FilterChip 选中态与 primary 恒等。
+    secondaryContainer = Color(0xFF3B8CF7),
+    onSecondaryContainer = Color(0xFFFFFFFF),
+    tertiary = Color(0xFF7090B0),
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFF0F0F0),
     onTertiaryContainer = Color(0xFF000000),
@@ -66,21 +75,22 @@ private val HyperLight = lightColorScheme(
     outlineVariant = Color(0xFFECECEC),
     inverseSurface = Color(0xFF000000),
     inverseOnSurface = Color(0xFFFFFFFF),
-    inversePrimary = Color(0xFF5D9BFF),
+    inversePrimary = Color(0xFF5070B0),
     scrim = Color(0x52000000)
 )
 
-// —— HyperOS 深色（Miuix darkColorScheme）——
+// —— 企鹅蓝主色（暗）——
 private val HyperDark = darkColorScheme(
-    primary = Color(0xFF4D94FF),
-    onPrimary = Color(0xFF000000),
-    primaryContainer = Color(0xFF1A3A6E),
-    onPrimaryContainer = Color(0xFFE8F1FF),
+    primary = Color(0xFF6E96BF),
+    onPrimary = Color(0xFF071B2E),
+    primaryContainer = Color(0xFF14334F),
+    onPrimaryContainer = Color(0xFFD6E6F2),
     secondary = Color(0xFF505050),
     onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFF2C2C2C),
-    onSecondaryContainer = Color(0xFFE0E0E0),
-    tertiary = Color(0xFF5D9BFF),
+    // 同亮色：选中 chip 容器对齐暗态 primary 蓝（onPrimary 深字，保证对比）
+    secondaryContainer = Color(0xFF6E96BF),
+    onSecondaryContainer = Color(0xFF071B2E),
+    tertiary = Color(0xFF84A6C8),
     onTertiary = Color(0xFF000000),
     tertiaryContainer = Color(0xFF2C2C2C),
     onTertiaryContainer = Color(0xFFE0E0E0),
@@ -103,7 +113,7 @@ private val HyperDark = darkColorScheme(
     outlineVariant = Color(0xFF2A2A2A),
     inverseSurface = Color(0xFFFFFFFF),
     inverseOnSurface = Color(0xFF000000),
-    inversePrimary = Color(0xFF5D9BFF),
+    inversePrimary = Color(0xFF9DBBDA),
     scrim = Color(0x52000000)
 )
 
@@ -143,91 +153,40 @@ private val HyperShapes = androidx.compose.material3.Shapes(
 )
 
 /**
- * 美术主题包：在基础配色（HyperLight/HyperDark）上覆盖主色 token。
- * - 青：青绿主色（美术生常用，清新生动）；
- * - 墨：墨黑留白（极简水墨风，主色近黑）；
- * - 锦：锦红描金（传统锦缎红 + 描金 tertiary）。
- * 其余 surface/背景沿用基础方案，保证深色与浅色下的文字对比度合规。
- */
-private fun applyThemePack(base: androidx.compose.material3.ColorScheme, pack: String, dark: Boolean): androidx.compose.material3.ColorScheme {
-    val (primary, onPrimary, primaryContainer, onPrimaryContainer, inversePrimary, tertiary) = when (pack) {
-        // 小米蓝：原 HyperOS 品牌蓝，作为可选主题保留（用户要求不删除）
-        "小米蓝" -> if (dark) Tuple(
-            0xFF4D94FF, 0xFF000000, 0xFF1A3A6E, 0xFFE8F1FF, 0xFF5D9BFF, 0xFF5D9BFF
-        ) else Tuple(
-            0xFF3482FF, 0xFFFFFFFF, 0xFFE8F1FF, 0xFF0B3D91, 0xFF5D9BFF, 0xFF5D9BFF
-        )
-        "青" -> if (dark) Tuple(
-            0xFF4FD1C0, 0xFF003730, 0xFF00514A, 0xFFAEF3E6, 0xFF73D3C2, 0xFF7FD8C9
-        ) else Tuple(
-            0xFF0F8A7A, 0xFFFFFFFF, 0xFFD2F0E9, 0xFF003730, 0xFF73D3C2, 0xFF2E9E8F
-        )
-        "墨" -> if (dark) Tuple(
-            0xFFE0E0E0, 0xFF1A1A1A, 0xFF3A3A3A, 0xFFEAEAEA, 0xFF5A5A5A, 0xFFB0B0B0
-        ) else Tuple(
-            0xFF3A3A3A, 0xFFFFFFFF, 0xFFE4E4E4, 0xFF1A1A1A, 0xFF5A5A5A, 0xFF4A4A4A
-        )
-        "锦" -> if (dark) Tuple(
-            0xFFE57380, 0xFF410009, 0xFF6E1B22, 0xFFFBBEC2, 0xFFE57380, 0xFFE0C044
-        ) else Tuple(
-            0xFFB23A48, 0xFFFFFFFF, 0xFFFBE6E8, 0xFF410009, 0xFFE57380, 0xFFC9A227
-        )
-        "企鹅" -> if (dark) Tuple(
-            0xFF6E96BF, 0xFF071B2E, 0xFF14334F, 0xFFD6E6F2, 0xFF9DBBDA, 0xFF84A6C8
-        ) else Tuple(
-            0xFF305070, 0xFFFFFFFF, 0xFFE3ECF5, 0xFF10243C, 0xFF5070B0, 0xFF7090B0
-        )
-        // 默认 = 墨绿（对齐网页端青墨渐变，沉稳高级）；此前默认即小米蓝，现改为墨绿，小米蓝作为独立选项保留
-        else -> if (dark) Tuple(
-            0xFF4FA088, 0xFF002116, 0xFF16302A, 0xFFA6D8C6, 0xFF2F6B57, 0xFF73C2A6
-        ) else Tuple(
-            0xFF2F6B57, 0xFFFFFFFF, 0xFFDCEBE3, 0xFF0E3A2C, 0xFF5BA98C, 0xFF3C8C72
-        )
-    }
-    return base.copy(
-        primary = Color(primary),
-        onPrimary = Color(onPrimary),
-        primaryContainer = Color(primaryContainer),
-        onPrimaryContainer = Color(onPrimaryContainer),
-        inversePrimary = Color(inversePrimary),
-        tertiary = Color(tertiary)
-    )
-}
-
-/** 六元组（避免引入额外 data class 依赖） */
-private data class Tuple(
-    val a: Long, val b: Long, val c: Long,
-    val d: Long, val e: Long, val f: Long
-)
-
-/**
- * 美术包渐变：Hero / 主按钮 / 我的头部等强调面使用的线性渐变。
- * 按主题包给出匹配的起止色，保证与 ColorScheme token 一致的高级观感；文字统一用白色（可读性已校验）。
- * 不依赖 ColorScheme，避免 primaryContainer 在不同包下色相漂移导致渐变发灰。
+ * Hero 渐变（企鹅蓝）：亮/暗两态，统一主色。文字统一白色（可读性已校验）。
+ * 不依赖 ColorScheme，避免 primaryContainer 色相漂移导致渐变发灰。
  */
 object AppGradients {
-    fun hero(pack: String, dark: Boolean): Brush = when (pack) {
-        "小米蓝" -> if (dark) Brush.linearGradient(listOf(Color(0xFF4D94FF), Color(0xFF0B3D91)))
-        else Brush.linearGradient(listOf(Color(0xFF3482FF), Color(0xFF0B3D91)))
-        "青" -> if (dark) Brush.linearGradient(listOf(Color(0xFF4FD1C0), Color(0xFF003730)))
-        else Brush.linearGradient(listOf(Color(0xFF0F8A7A), Color(0xFF003730)))
-        "墨" -> Brush.linearGradient(listOf(Color(0xFF3A3A3A), Color(0xFF1A1A1A)))
-        "锦" -> if (dark) Brush.linearGradient(listOf(Color(0xFFE57380), Color(0xFF6E1B22)))
-        else Brush.linearGradient(listOf(Color(0xFFB23A48), Color(0xFF7E2823)))
-        "企鹅" -> if (dark) Brush.linearGradient(listOf(Color(0xFF16304C), Color(0xFF2C5276)))
-        else Brush.linearGradient(listOf(Color(0xFF305070), Color(0xFF1E4E7E)))
-        // 默认 = 墨绿（网页端同款青墨渐变）
-        else -> if (dark) Brush.linearGradient(listOf(Color(0xFF4FA088), Color(0xFF16302A)))
-        else Brush.linearGradient(listOf(Color(0xFF2F6B57), Color(0xFF1C3A30)))
-    }
+    fun hero(dark: Boolean): Brush = if (dark)
+        Brush.linearGradient(listOf(Color(0xFF14375F), Color(0xFF2A5B96)))
+    else
+        // 🔴 2026-09-22 按 12 号备课组稿 / 教案模板稿**双页像素实证**重校（杰哥裁定「改稿的亮蓝」）：
+        //    ① 色值整体提高一档明度 —— 两稿主体实测 (58~92,138~168,244~250)，即 #3C8DF6 亮天蓝；
+        //       原 #2263B3→#3077C9 是沉藏蓝，与稿的观感差一个明度档（这也是「配色对不上」的主因）。
+        //    ② 方向为「左上亮 → 右下暗」（两页稿横向逐点一致：R/G 通道左高右低）。
+        //       ⚠️ 与 09-20 批设置页稿测得的「左上暗→右下亮」相反 —— 两批生成稿方向不一致，
+        //       本轮以**更新的 15:44 批 + 双页一致**为准。
+        //    ③ 端点对齐稿内实测两端：亮端 #5EA8FB（稿左端实测 (96,166,251)）
+        //       / 暗端 #3B8CF7（稿主体实测 (59,140,247)）。首版取 #5AA2F1/#3A83E0
+        //       时右端 B 通道偏低 22（渲染 (61,134,225) vs 稿 (59,140,247)，偏灰），故上调。
+        Brush.linearGradient(listOf(Color(0xFF5EA8FB), Color(0xFF3B8CF7)))
 }
+
+/**
+ * 当前是否为暗色「应用主题」。
+ *
+ * 取的是设置里的三档（跟随系统 / 亮 / 暗）经 JiaoziTheme 解算后的结果，
+ * **不是** [isSystemInDarkTheme] 的原始系统值——用户手动选「暗」而系统为亮时，
+ * 前者为 true、后者为 false，直接读系统值会渲染出与主题不符的颜色。
+ * 任何需要按明暗分支取色的组件都应读这个 Local。
+ */
+val LocalAppDark = compositionLocalOf { false }
 
 @Composable
 fun JiaoziTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     fontScale: String = "md",
-    themePack: String = "默认",
     content: @Composable () -> Unit
 ) {
     val baseScheme = when {
@@ -238,8 +197,7 @@ fun JiaoziTheme(
         darkTheme -> HyperDark
         else -> HyperLight
     }
-    // 美术主题包：在基础配色上覆盖主色 token（青/墨/锦），其余 surface 沿用基础，保证对比度
-    val colorScheme = applyThemePack(baseScheme, themePack, darkTheme)
+    val colorScheme = baseScheme
     val scale = when (fontScale) {
         "sm" -> 0.9f
         "lg" -> 1.12f
@@ -249,9 +207,15 @@ fun JiaoziTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = if (scale == 1f) HyperTypography else scaleTypography(HyperTypography, scale),
-        shapes = HyperShapes,
-        content = content
-    )
+        shapes = HyperShapes
+    ) {
+        // 语义辅助色（状态色 / 文本色 / 背景色）随明/暗主题切换，保证暗色下文字与卡片对比度合规
+        AppColors.isDark = darkTheme
+        // 供深层组件读取「应用主题」明暗（非系统值），用于渐变 / 状态色分支
+        CompositionLocalProvider(LocalAppDark provides darkTheme) {
+            content()
+        }
+    }
 }
 
 /** 按系数整体缩放排版字号（不影响布局结构，仅字号；与网页端 setFont 一致） */

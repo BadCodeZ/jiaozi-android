@@ -1,5 +1,6 @@
 package com.jiaozi.sz.domain
 
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.Repository
 import com.jiaozi.sz.data.local.UserQuestionEntity
 import org.json.JSONArray
@@ -13,26 +14,6 @@ import java.util.UUID
  * 网络层用 HttpURLConnection（不引入额外依赖）。仅在设备端运行。
  */
 object AiGenEngine {
-
-    /**
-     * 生成题目并直接落库（兼容旧调用）。返回实际落库条数。
-     * 新流程建议用 [previewGenerate] + [commitGenerated]，先在 UI 预览审阅再入库。
-     * @param subject 科一/科二/科三
-     * @param scope 科三传学科(disc)，其余传章节名或空
-     */
-    suspend fun generate(
-        repo: Repository,
-        provider: String,
-        apiKey: String,
-        subject: String,
-        scope: String,
-        count: Int,
-        modelOverride: String = ""
-    ): Int {
-        val list = previewGenerate(repo, provider, apiKey, subject, scope, count, modelOverride)
-        commitGenerated(repo, list)
-        return list.size
-    }
 
     /**
      * 仅生成、不落库，返回待审阅的题目列表（对齐网页端「AI 生题后先预览」）。
@@ -98,7 +79,8 @@ object AiGenEngine {
      * 标注「离线样例」，使 AI 题库首开即可试用、不再只有报错。覆盖所选科目/章节的通用考点。
      */
     fun offlineGenerate(subject: String, scope: String, count: Int): List<UserQuestionEntity> {
-        val where = if (subject == "科三") scope.ifBlank { "学科" } else subject
+        // 展示 / 出题口径一律用大纲官方名（科目一《综合素质》/ 科目二《教育知识与能力》/ 科目三《学科知识与教学能力》·子科目）
+        val where = if (subject == "科三") scope.ifBlank { "学科知识" } else BankStore.officialName(subject)
         val tag = "【离线样例·$where】"
         val samples = listOf(
             UserQuestionEntity(
@@ -130,7 +112,7 @@ object AiGenEngine {
     }
 
     private fun buildPrompt(subject: String, scope: String, count: Int): String {
-        val where = if (subject == "科三") "学科「$scope」（科三）" else "科目「$subject」${if (scope.isNotBlank()) "章节「$scope」" else ""}"
+        val where = if (subject == "科三") "《学科知识与教学能力》学科「$scope」" else "《${BankStore.officialName(subject)}》${if (scope.isNotBlank()) "章节「$scope」" else ""}"
         return """
 请围绕$where，生成 $count 道教师资格证考试练习题，严格只输出一个 JSON 数组，不要任何解释。
 数组元素字段：

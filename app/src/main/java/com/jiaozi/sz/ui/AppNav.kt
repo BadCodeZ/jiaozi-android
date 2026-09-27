@@ -48,8 +48,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.FloatingBackButton
 import com.jiaozi.sz.ui.components.GlassSurface
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,6 +77,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.jiaozi.sz.ui.screens.AiChatScreen
+import com.jiaozi.sz.ui.screens.AiGenScreen
 import com.jiaozi.sz.ui.screens.BankScreen
 import com.jiaozi.sz.ui.screens.BookScreen
 import com.jiaozi.sz.ui.screens.ChaptersScreen
@@ -86,12 +89,26 @@ import com.jiaozi.sz.ui.screens.LessonScreen
 import com.jiaozi.sz.ui.screens.MineScreen
 import com.jiaozi.sz.ui.screens.SearchScreen
 import com.jiaozi.sz.ui.screens.PracticeScreen
+import com.jiaozi.sz.ui.screens.PracticeSetupScreen
 import com.jiaozi.sz.ui.screens.ProofScreen
 import com.jiaozi.sz.ui.screens.SettingsScreen
+import com.jiaozi.sz.ui.screens.SettingsAppearanceScreen
+import com.jiaozi.sz.ui.screens.SettingsIslandScreen
+import com.jiaozi.sz.ui.screens.SettingsGoalScreen
+import com.jiaozi.sz.ui.screens.SettingsSubjectScreen
+import com.jiaozi.sz.ui.screens.SettingsStageScreen
+import com.jiaozi.sz.ui.screens.SettingsBackupScreen
+import com.jiaozi.sz.ui.screens.SettingsWebDavScreen
+import com.jiaozi.sz.ui.screens.SettingsAiScreen
+import com.jiaozi.sz.ui.screens.SettingsOnboardingScreen
 import com.jiaozi.sz.ui.screens.AboutScreen
 import com.jiaozi.sz.ui.screens.StatsScreen
 import com.jiaozi.sz.ui.screens.TodayScreen
+import com.jiaozi.sz.ui.screens.BankDownloadScreen
+import com.jiaozi.sz.ui.screens.BankManageScreen
 import com.jiaozi.sz.xiaomi.Haptic
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 sealed class Screen(val route: String, val label: String, val iconRes: Int) {
     object Today : Screen("today", "今日", R.drawable.ic_today)
@@ -101,7 +118,13 @@ sealed class Screen(val route: String, val label: String, val iconRes: Int) {
     object Mine : Screen("mine", "我的", R.drawable.ic_person)
 }
 
-/** 底部主导航：5 个入口，避免窄屏 6 tab 拥挤；图谱/设置收入"我的" */
+/**
+ * 底部主导航：5 个入口，避免窄屏 6 tab 拥挤；图谱/设置收入"我的"。
+ *
+ * 🔴 2026-09-20 订正：原注释已如此宣称，但「我的」页四组入口**实际均无 graph** ⇒ 名不副实
+ * （用户报「找不到图谱页入口」）。已按 07 号 E4 + overlap_policy 在『内容』组补齐
+ * `MineEntry("tree","知识图谱",…,"graph")`，注释与实现自此一致。
+ */
 val bottomItems = listOf(
     Screen.Today, Screen.Practice, Screen.Bank, Screen.Stats, Screen.Mine
 )
@@ -109,38 +132,105 @@ val bottomItems = listOf(
 /** 二级页面路由 → 顶栏标题（用于固定顶栏返回键，仅二级页显示，底部 5 页不显示） */
 val secondaryTitles = mapOf(
     "settings" to "设置",
-    "graph" to "知识关联图谱",
-    "chapters" to "章节健康度",
-    "lesson" to "备课教案",
+    "about" to "关于",
+    "graph" to "知识图谱",
+    "chapters" to "章节管理",
+    "lesson" to "备课组",
     "curric" to "课标库",
-    "books" to "教材库",
+    "books" to "教材管理",
     "inbox" to "收集箱",
     "proof" to "校订",
-    "aichat" to "AI 帮手",
+    "aichat" to "AI 助手",
     "knowledge" to "知识库",
-    "search" to "搜索"
+    "search" to "搜索",
+    "practicesetup" to "练习设置",
+    "aigen" to "AI 生成",
+    // 🔴 2026-09-26 新增：设置组 8 个二级页（方案 B「独立二级页统一跳转」）
+    //    见 11 号规范 `revision_20260926` —— 原「行内就地展开手风琴」整体退场。
+    "settings_appearance" to "外观主题",
+    "settings_island" to "灵动岛",
+    "settings_goal" to "学习目标",
+    "settings_subject" to "科目三 · 学科",
+    // 🔴 2026-09-28 学段筛题：报考学段二级页（与「科目三 · 学科」并列，同属偏好设置组）
+    "settings_stage" to "报考学段",
+    "settings_backup" to "本地备份",
+    "settings_webdav" to "WebDAV 同步",
+    "settings_ai" to "AI 配置",
+    "settings_onboarding" to "新手引导",
+    // 🔴 2026-09-28 题库外置：首启下载引导 + 题库管理二级页
+    "bankdownload" to "下载题库",
+    "bankmanage" to "题库管理"
 )
 
 /**
- * 二级页面统一顶栏：左上角返回按钮 + 标题。
- * 由「我的」进入的设置/图谱/备课/收集箱/校订/AI帮手/知识库/全局搜索等页面复用，
- * 用户可一键返回，不再卡在二级页。
+ * 已自带 HeroHeader 的二级屏：标题由 HeroHeader 承载，悬浮返回条只留返回箭头（showTitle=false），避免标题重复。
+ * 其余二级屏仍由悬浮返回条显示标题。
+ *
+ * 🔴 2026-09-21 增补 `aichat`：AI 助手页**页内自带标题行**（「AI 助手」+ 新建对话 + 菜单，见 `AiChatScreen`），
+ * 而悬浮返回条默认还会再画一枚「AI 助手」标题胶囊 ⇒ **同屏出现两个标题**（真机实测）。
+ * 按稿（页内只有一条标题行）登记本集合：返回条只留返回圆，标题交给页内。
  */
-@Composable
-fun ScreenHeader(title: String, nav: NavHostController, showBack: Boolean = true) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        if (showBack) {
-            IconButton(onClick = { nav.navigateUp() }) {
-                Icon(appPainter("back"), contentDescription = "返回", modifier = Modifier.size(22.dp))
-            }
-        }
-        Text(title, style = MaterialTheme.typography.headlineSmall)
-    }
-}
+val heroHeaderRoutes = setOf(
+    "settings", "proof", "chapters", "graph", "aichat", "search",
+    // 2026-09-26：设置组 8 个二级页 —— 标题由页内 Hero 承载，悬浮条只留返回箭头
+    "settings_appearance", "settings_island", "settings_goal", "settings_subject", "settings_stage",
+    "settings_backup", "settings_webdav", "settings_ai", "settings_onboarding",
+    // 🔴 2026-09-28 题库外置：两页均自带 immersive HeroHeader，标题由 Hero 承载
+    "bankdownload", "bankmanage"
+)
+
+/**
+ * 🔴🔴 **沉浸 Hero 二级页**（2026-09-19 新增；**2026-09-22 扩面**）：这些二级页自带
+ * `HeroHeader(immersive = true)`，Hero 背景要**铺到屏幕顶**（状态栏白字直接压在渐变上），
+ * 因此**必须豁免下方 56dp 返回件占位**，且**不再叠加全局悬浮返回件**。
+ *
+ * 不豁免的后果（2026-09-19 实测）：`AppNav` 给二级页统一留 56dp 顶部内边距给悬浮返回键，
+ * 而 `HeroHeader` 内部只向上溢出 `statusBarInset`（24dp）⇒ 屏幕顶部露出 **56dp 页面底色**
+ * （实测灰带 y=0..223px ÷ 4 = 56dp，Hero 蓝从 y=224 才开始），沉浸观感全废。
+ *
+ * ⚠️ 判定口径：一级 Tab（`isPrimaryTab`）本就不留 56dp，无需入此集合；
+ * 本集合只登记「二级页 + 沉浸 Hero」的组合。新增此类页面时**必须同步登记**。
+ *
+ * 🔴 2026-09-22 按杰哥裁定「二级界面 Hero 统一沉浸通栏」扩面：原仅 `inbox`/`proof`，
+ * 现并入原「卡片派」6 页（教材/课标库/章节/知识库/图谱/设置）+ 备课组/教案模板，
+ * 全站二级页 Hero 收敛为**同一形态**。
+ */
+val immersiveHeroRoutes = setOf(
+    // 原始两页（2026-09-19）
+    "inbox", "proof",
+    // 2026-09-22 扩面：原卡片派二级页
+    "books", "curric", "chapters", "knowledge", "graph", "settings",
+    // 2026-09-22 扩面：备课组与教案模板（此前已沉浸，此处补登记口径一致性）
+    "lesson",
+    // 2026-09-26：设置组 8 个二级页（外壳统一走 SettingsDetailPage，Hero 均 immersive = true）
+    "settings_appearance", "settings_island", "settings_goal", "settings_subject", "settings_stage",
+    "settings_backup", "settings_webdav", "settings_ai", "settings_onboarding",
+    // 🔴 2026-09-28 题库外置：下载引导 / 题库管理均 immersive Hero
+    "bankdownload", "bankmanage"
+)
+
+/**
+ * 🔴🔴 **沉浸 Hero 页自带返回入口**（2026-09-22 新增）：`HeroHeader(onBack = …)` 把返回键
+ * **内联在 Hero 首行左端槽位**，故全局悬浮返回件与「收起态磨砂返回条」都**不应再出现**
+ *（后者所属的折叠机制已于 2026-09-21 停用、2026-09-25 彻底退场）。
+ *
+ * 与 [immersiveHeroRoutes] 的区别：
+ * - `immersiveHeroRoutes` = 只豁免 56dp 顶距（返回件仍可由 AppNav 叠加，如收集箱/校订曾靠
+ *   `onBack` 内联 + 本集合豁免来避免重叠）；
+ * - `selfBackRoutes`（本集合）= 页面**完全自理**返回入口。若某页外框有自己的一级子页
+ *   （如教材/课标库的 Detail 态自带 `GlassBackButton`），登记本集合即可让全局件彻底让位。
+ *
+ * ⚠️ 只登记「确实已内联 `onBack`」的页面，避免用户失去返回入口。
+ */
+val selfBackRoutes = setOf(
+    "inbox", "proof", "lesson",
+    "books", "curric", "chapters", "knowledge", "graph", "settings",
+    // 2026-09-26：设置组 8 个二级页 —— 返回键内联在 Hero 首行左端槽，全局悬浮件彻底让位
+    "settings_appearance", "settings_island", "settings_goal", "settings_subject",
+    "settings_backup", "settings_webdav", "settings_ai", "settings_onboarding",
+    // 🔴 2026-09-28 题库外置：两页均自带返回入口（BankManage 内联 onBack；BankDownload 为强制首启页，无返回）
+    "bankdownload", "bankmanage"
+)
 
 /**
  * 集中动效 token + 系统「减少动态效果」跟随。
@@ -215,7 +305,14 @@ fun AppRoot() {
         Screen.Today.route, Screen.Practice.route, Screen.Bank.route,
         Screen.Stats.route, Screen.Mine.route
     )
-    // 练习答题会话（仅限练习页内、未完成），与「二级界面」共同决定是否隐藏
+    // 悬浮返回条：二级界面显示（练习是一级 Tab，天然排除；lesson 为内部多视图状态机，
+    // 由其自身组件（LessonHub/LessonEditor/LessonTemplateLibrary）渲染状态感知的返回键，避免绕过未保存保护）
+    val showFloating = !isPrimaryTab && currentRoute != "lesson"
+    // 练习答题会话（仅限练习页内、未完成）。所有会话入口（练习首页 / 题库章节 / 今日推荐 /
+    // 搜索单题）都会先 navigate 到 practice，故该判据完整覆盖各种题型。
+    // 🔴 2026-09-19：答题中【一律隐藏】底栏（原仅隐藏限时模考）——普通练习保留底栏会与
+    // 「上/提交/下一题」按钮行贴边，且浪费约 76dp 纵向空间。代价：答题中不能直接切去
+    // 知识库/统计，需先点左上「× 退出」（退出不保留当前会话，已答仍记入错题本）。
     val inPracticeAnswering = currentRoute == Screen.Practice.route
         && practiceState.questions.isNotEmpty() && !practiceState.finished
     // 隐藏 = 非一级 Tab（即二级界面），或（练习页内正在答题）
@@ -245,87 +342,140 @@ fun AppRoot() {
         }
     }
 
+    // 🔴 2026-09-28 题库外置：首启引导闭环。仅当【meta 已就绪】且【bank_init_done=false】才跳转，
+    // 避免默认值 false 在 init 读 meta 前误触发（导致老用户闪现下载页且无法退出）。
+    // 跳转用 popUpTo(start) inclusive，使下载页成为唯一栈底；完成后 BankDownloadScreen 自行跳 today。
+    val bankInitDone by appVm.bankInitDone.collectAsStateWithLifecycle()
+    val metaLoaded by appVm.metaLoaded.collectAsStateWithLifecycle()
+    LaunchedEffect(metaLoaded, bankInitDone) {
+        if (metaLoaded && !bankInitDone && currentRoute != "bankdownload") {
+            nav.navigate("bankdownload") {
+                popUpTo(nav.graph.startDestinationId) { inclusive = true }
+            }
+        }
+    }
+
     // 系统「减少动态效果」开关：仅在 @Composable 作用域算一次，普通 Boolean 可安全捕获进非组合回调
     val rm = reduceMotionNow(LocalContext.current)
     // 启动遮罩：冷启动时先显示品牌 logo 居中，首帧组合完成后短暂停留再 scale+alpha 退场，
     // 消除 Android 冷启动白屏断层（参考椒盐 SplashScreen 退出动画思路，但零新依赖、纯 Compose 自绘）。
     // 减少动态效果时直接跳过遮罩（不闪）。
+    //
+    // 🔴 2026-09-19：退场时机与 `metaLoaded` 联动（原为固定 delay(450)，导致骨架屏被遮挡而永不可见）。
+    //   时序 = 最短停留 450ms（保证 logo 可辨识）→ 等首屏 meta 就绪 → 最长兜底 1500ms。
+    //   · meta 快（常见 <100ms）⇒ 450ms 即退场，观感与旧版一致
+    //   · meta 慢 ⇒ 退场后由页面自身骨架屏接管，用户看到结构占位而非白屏
     var showSplash by remember { mutableStateOf(!rm) }
     LaunchedEffect(Unit) {
         if (rm) return@LaunchedEffect
-        kotlinx.coroutines.delay(450)
+        kotlinx.coroutines.delay(450)                                  // 最短停留：品牌可见性下限
+        withTimeoutOrNull(1050) { appVm.metaLoaded.first { it } }      // 上限 450+1050=1500ms，防无限等待
         showSplash = false
     }
     Scaffold(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            // 固定顶栏：状态栏占位 + （仅二级页）返回键与标题，滚动不影响其位置
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars.union(WindowInsets.displayCutout)))
-                val route = nav.currentBackStackEntryAsState().value?.destination?.route
-                val title = secondaryTitles[route]
-                if (title != null) {
-                    ScreenHeader(title, nav)
-                }
-            }
+            // 固定顶栏仅保留状态栏占位（含挖孔）；返回键与标题改为圆形磨砂悬浮件 + 标题胶囊叠加在内容之上，
+            // 不再占用 Scaffold 顶栏高度，减少屏幕纵向占用（详见下方 FloatingBackButton overlay）。
+            Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars.union(WindowInsets.displayCutout)))
         },
     ) { inner ->
         CompositionLocalProvider(LocalAppVm provides appVm, LocalPracticeVm provides practiceVm) {
             Box(Modifier.fillMaxSize()) {
-                // 平板/横屏适配：宽屏（sw>=600，含平板与手机横屏）约束内容最大宽度并居中，避免单栏拉得过宽
-                val isWide = LocalConfiguration.current.screenWidthDp >= 600
+                // 平板/横屏适配：宽屏约束内容最大宽度并居中，避免单栏拉得过宽。
+                // 🔴 2026-09-21 按 14 号高保真稿把阈值 600 → **720dp**：稿面响应式区明确标注
+                //    「竖屏（<720dp）」不居中 /「平屏·横屏（≥720dp）居中」，且 responsive.tokens 记
+                //    `sz.navbar.maxWidth = 720dp`。原 600 沿用 Android 通用 sw600dp 平板判定，与稿不符。
+                //    ⚠️ 影响面：600~719dp 设备（小平板 / 折叠屏半开）由「居中限宽」变回「通栏」。
+                val isWide = LocalConfiguration.current.screenWidthDp >= 720
                 // 内容区：顶部留出顶栏高度；内容延展到导航之下（导航为半透明玻璃，内容从身后透出 = 四周透明）
                 Box(Modifier.fillMaxSize().padding(inner).then(if (isWide) Modifier.widthIn(max = 720.dp).align(Alignment.TopCenter) else Modifier)) {
                     // 内容区微质感：极淡 surface→surfaceVariant 垂直渐变（仅内容区；顶栏/底栏仍为纯 surface）
+                    // 二级界面顶部留出 56dp（44dp 圆钮 + 上下 6dp）给悬浮返回键，避免正文被遮挡
                     Box(
-                        Modifier.fillMaxSize().background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    MaterialTheme.colorScheme.surface,
-                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        Modifier
+                            .fillMaxSize()
+                            // ⚠️ 沉浸 Hero 二级页豁免这 56dp：Hero 自己负责顶部（背景铺到屏幕顶），
+                            // 再留占位会让屏幕顶部露出 56dp 页面底色（见 immersiveHeroRoutes 注释）。
+                            .then(if (showFloating && currentRoute !in immersiveHeroRoutes) Modifier.padding(top = 56.dp) else Modifier)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.surface,
+                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                    )
                                 )
                             )
-                        )
-                    )
-                    NavHost(
-                        nav,
-                        startDestination = Screen.Today.route,
-                        // 页面切换：fade + 轻微 scale（缩放营造"推入/推出"纵深感，参考椒盐丝滑观感）
-                        enterTransition = {
-                            fadeIn(tween(Motion.duration(rm, Motion.FAST))) +
-                                scaleIn(initialScale = 0.97f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
-                        },
-                        exitTransition = {
-                            fadeOut(tween(Motion.duration(rm, Motion.FAST))) +
-                                scaleOut(targetScale = 1.03f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
-                        },
-                        popEnterTransition = {
-                            fadeIn(tween(Motion.duration(rm, Motion.FAST))) +
-                                scaleIn(initialScale = 1.03f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
-                        },
-                        popExitTransition = {
-                            fadeOut(tween(Motion.duration(rm, Motion.FAST))) +
-                                scaleOut(targetScale = 0.97f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
-                        }
                     ) {
-                        composable(Screen.Today.route) { TodayScreen(nav) }
-                        composable(Screen.Practice.route) { PracticeScreen(nav) }
-                        composable(Screen.Bank.route) { BankScreen(nav) }
-                        composable(Screen.Stats.route) { StatsScreen(nav) }
-                        composable(Screen.Mine.route) { MineScreen(nav) }
-                        // 我的页内的二级入口（不在底部显示）
-                        composable("settings") { SettingsScreen(nav) }
-                        composable("about") { AboutScreen(nav) }
-                        composable("graph") { GraphScreen(nav) }
-                        composable("chapters") { ChaptersScreen(nav) }
-                        composable("lesson") { LessonScreen(nav) }
-                        composable("curric") { CurricScreen(nav) }
-                        composable("books") { BookScreen(nav) }
-                        composable("inbox") { InboxScreen(nav) }
-                        composable("proof") { ProofScreen(nav) }
-                        composable("aichat") { AiChatScreen(nav) }
-                        composable("knowledge") { KnowledgeScreen(nav) }
-                        composable("search") { SearchScreen(nav) }
+                        NavHost(
+                            nav,
+                            startDestination = Screen.Today.route,
+                            // 页面切换：fade + 轻微 scale（缩放营造"推入/推出"纵深感，参考椒盐丝滑观感）
+                            enterTransition = {
+                                fadeIn(tween(Motion.duration(rm, Motion.FAST))) +
+                                    scaleIn(initialScale = 0.97f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
+                            },
+                            exitTransition = {
+                                fadeOut(tween(Motion.duration(rm, Motion.FAST))) +
+                                    scaleOut(targetScale = 1.03f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
+                            },
+                            popEnterTransition = {
+                                fadeIn(tween(Motion.duration(rm, Motion.FAST))) +
+                                    scaleIn(initialScale = 1.03f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
+                            },
+                            popExitTransition = {
+                                fadeOut(tween(Motion.duration(rm, Motion.FAST))) +
+                                    scaleOut(targetScale = 0.97f, animationSpec = tween(Motion.duration(rm, Motion.BASE)))
+                            }
+                        ) {
+                            composable(Screen.Today.route) { TodayScreen(nav) }
+                            composable(Screen.Practice.route) { PracticeScreen(nav) }
+                            composable(Screen.Bank.route) { BankScreen(nav) }
+                            composable(Screen.Stats.route) { StatsScreen(nav) }
+                            composable(Screen.Mine.route) { MineScreen(nav) }
+                            // 我的页内的二级入口（不在底部显示）
+                            composable("settings") { SettingsScreen(nav) }
+                            composable("about") { AboutScreen() }
+                            // 2026-09-26：设置组 8 个二级页（原「行内就地展开」改为独立路由）
+                            composable("settings_appearance") { SettingsAppearanceScreen(nav) }
+                            composable("settings_island") { SettingsIslandScreen(nav) }
+                            composable("settings_goal") { SettingsGoalScreen(nav) }
+                            composable("settings_subject") { SettingsSubjectScreen(nav) }
+                            composable("settings_stage") { SettingsStageScreen(nav) }
+                            composable("settings_backup") { SettingsBackupScreen(nav) }
+                            composable("settings_webdav") { SettingsWebDavScreen(nav) }
+                            composable("settings_ai") { SettingsAiScreen(nav) }
+                            composable("settings_onboarding") { SettingsOnboardingScreen(nav) }
+                            composable("graph") { GraphScreen(nav) }
+                            composable("chapters") { ChaptersScreen(nav) }
+                            composable("lesson") { LessonScreen(nav) }
+                            composable("curric") { CurricScreen(nav) }
+                            composable("books") { BookScreen(nav) }
+                            composable("inbox") { InboxScreen(nav) }
+                            composable("proof") { ProofScreen(nav) }
+                            composable("aichat") { AiChatScreen(nav) }
+                            composable("knowledge") { KnowledgeScreen(nav) }
+                            composable("search") { SearchScreen(nav) }
+                            composable("practicesetup") { PracticeSetupScreen(nav) }
+                            composable("aigen") { AiGenScreen(nav) }
+                            // 🔴 2026-09-28 题库外置：首启下载引导 + 题库管理
+                            composable("bankdownload") { BankDownloadScreen(nav) }
+                            composable("bankmanage") { BankManageScreen(nav) }
+                        }
+                    }
+                    // 悬浮返回键（仅二级界面）：常驻【左上角圆形磨砂悬浮件】+ 右侧标题胶囊，
+                    // 覆盖在内容之上、不占 Scaffold 顶栏高度（2026-09-18 P2 统一，见 GlassBackButton）
+                    //
+                    // 🔴🔴 沉浸 Hero 二级页（immersiveHeroRoutes）**不再叠加本返回件**（2026-09-19）：
+                    //   本件是 `Alignment.TopCenter` 的最上层 overlay，与 Hero 内容完全独立 ⇒ 必然压住
+                    //   Hero 的 46dp 图标徽章（实测收集箱/校订两页「磨砂白圆 + 标题胶囊」正落在图标上）。
+                    //   这两页改为：返回键**内联在 Hero 首行**（`HeroHeader(onBack = …)`），
+                    //   （原「收起态由 CollapsedHubBar(leading = …) 承载」已随折叠退场删除，)
+                    //   仍满足 02 号全局规则第 5 条「返回入口全局唯一」的精神（唯一 = 每个页面只一个返回入口）。
+                    if (showFloating && currentRoute !in selfBackRoutes) {
+                        Box(Modifier.align(Alignment.TopCenter)) {
+                            FloatingBackButton(nav, secondaryTitles[currentRoute] ?: "", showTitle = currentRoute !in heroHeaderRoutes)
+                        }
                     }
                 }
                 // 悬浮导航层：进入练习答题会话时下移淡出（沉浸式），避免遮挡提交/下一步按钮。
@@ -369,15 +519,26 @@ fun AppRoot() {
                             animationSpec = Motion.springSteady(rm),
                             label = "splashLogo"
                         )
-                        Icon(
-                            painter = painterResource(R.mipmap.ic_launcher_foreground),
-                            contentDescription = null,
-                            modifier = Modifier.size(72.dp).graphicsLayer {
-                                scaleX = logoScale
-                                scaleY = logoScale
-                            },
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        // 🔴 2026-09-21 按 14 号高保真稿：开屏补 slogan「让学习更简单」
+                        //    （稿面 logo 下方一行；开屏是本 App 允许承载品牌/IP 文案的合法节点之一）
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                painter = painterResource(R.mipmap.ic_launcher_foreground),
+                                contentDescription = null,
+                                modifier = Modifier.size(72.dp).graphicsLayer {
+                                    scaleX = logoScale
+                                    scaleY = logoScale
+                                },
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            Text(
+                                "让学习更简单",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                letterSpacing = 2.sp
+                            )
+                        }
                     }
                 }
             }

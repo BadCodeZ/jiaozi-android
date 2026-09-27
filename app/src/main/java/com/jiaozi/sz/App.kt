@@ -10,6 +10,7 @@ import com.jiaozi.sz.data.AppRepository
 import com.jiaozi.sz.data.BackupManager
 import com.jiaozi.sz.data.local.AppDatabase
 import com.jiaozi.sz.data.AssetLoader
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.model.Bank
 import com.jiaozi.sz.data.remote.WebDavWorker
 import java.util.concurrent.TimeUnit
@@ -41,8 +42,10 @@ class App : Application() {
         val db = AppDatabase.build(this)
 
         // 各资源独立兜底：单个文件缺失/解析失败时降级为空数据，避免整进程崩溃
-        val bank = runCatching { AssetLoader.loadBank(this) }.getOrElse { e ->
-            recordLoadError("题库 bank.json", e); Bank(emptyList(), emptyList())
+        // 🔴 2026-09-28 题库外置：内置题库不再打包进 assets，改为从 filesDir/banks/ 合并已下载的科目包；
+        //   首次启动（尚未下载）为空题库，由首启下载引导页拉取。
+        val bank = runCatching { BankStore.loadLocal(this) }.getOrElse { e ->
+            recordLoadError("本地题库", e); Bank(emptyList(), emptyList())
         }
         val syllabus = runCatching { AssetLoader.loadSyllabus(this) }.getOrElse { e ->
             recordLoadError("大纲 default_syllabus.json", e); emptyList()
@@ -58,7 +61,9 @@ class App : Application() {
             bank, syllabus, autoSyll, knowledge,
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
             db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(), db.docIndexDao(),
-            db.proofReviewDao()
+            db.proofReviewDao(),
+            // 同步信封基线改为落盘（原为 meta 单行，超 CursorWindow 上限后会导致导出/同步全废）
+            com.jiaozi.sz.data.RawEnvStore(java.io.File(filesDir, "sync_env_raw.json"))
         )
 
         // 启动自动快照（约 24h 一次，滚动保留 7 份）：单机安全网，失败静默忽略

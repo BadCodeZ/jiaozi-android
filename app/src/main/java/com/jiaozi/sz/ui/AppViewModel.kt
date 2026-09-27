@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiaozi.sz.App
 import com.jiaozi.sz.data.AppRepository
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.ChapterCfg
 import com.jiaozi.sz.data.MetaKeys
 import com.jiaozi.sz.data.model.LessonTemplate
@@ -21,14 +22,26 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import com.jiaozi.sz.util.todayIso
+import com.jiaozi.sz.util.yesterdayIso
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repo: AppRepository = (app as App).repository
 
     private val _subject3Disc = MutableStateFlow("美术")
     val subject3Disc: StateFlow<String> = _subject3Disc.asStateFlow()
+
+    /**
+     * 🔴 2026-09-28 学段筛题：用户**报考学段**（`"初中"` / `"高中"`，见 [BankStore.STAGE_OPTIONS]）。
+     *
+     * 语义（对齐用户裁定口径）：
+     * - 空串 `""` = **未设置** ⇒ 不启用学段过滤，全部题目可见（兼容旧用户 / 首次安装未选）；
+     * - `"初中"` / `"高中"` ⇒ 练习只出「本学段 + 通用题」（[Question.stage] 为 null 或等于该值）。
+     *
+     * 与 [subject3Disc]（科三学科）并列，同为主页偏好；落盘键 [MetaKeys.EXAM_STAGE]。
+     */
+    private val _examStage = MutableStateFlow("")
+    val examStage: StateFlow<String> = _examStage.asStateFlow()
 
     private val _targetDay = MutableStateFlow("")
     val targetDay: StateFlow<String> = _targetDay.asStateFlow()
@@ -57,6 +70,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val pendingSearch: StateFlow<String> = _pendingSearch.asStateFlow()
     fun setPendingSearch(q: String) { _pendingSearch.value = q }
 
+    /** 搜索结果直达：待打开文档（路由 + id），SearchScreen 写入、目标屏消费后定位 */
+    data class PendingOpenDoc(val route: String, val id: String)
+    private val _pendingOpenDoc = MutableStateFlow<PendingOpenDoc?>(null)
+    val pendingOpenDoc: StateFlow<PendingOpenDoc?> = _pendingOpenDoc.asStateFlow()
+    fun requestOpenDoc(route: String, id: String) { _pendingOpenDoc.value = PendingOpenDoc(route, id) }
+    fun clearPendingOpenDoc() { _pendingOpenDoc.value = null }
+
     /** 小米桌面组件点击：请求进入练习页（AppRoot 消费后清空） */
     private val _pendingPractice = MutableStateFlow(false)
     val pendingPractice: StateFlow<Boolean> = _pendingPractice.asStateFlow()
@@ -73,16 +93,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setPendingChapterPractice(subj: String, chapter: String) { _pendingChapterPractice.value = subj to chapter }
     fun clearPendingChapterPractice() { _pendingChapterPractice.value = null }
 
+    /**
+     * 🔴 2026-09-23（统计页 E7 / 走查 #34）：从统计页跳「校订」时指定落哪个 Tab。
+     * 原实现「错题本」入口直接 `navigate("practice")`，与语义不符 —— 错题本是校订页的第 2 个 Tab。
+     */
+    private val _pendingProofTab = MutableStateFlow<String?>(null)
+    val pendingProofTab: StateFlow<String?> = _pendingProofTab.asStateFlow()
+    fun setPendingProofTab(tab: String) { _pendingProofTab.value = tab }
+    fun clearPendingProofTab() { _pendingProofTab.value = null }
+
     private val _theme = MutableStateFlow("system") // system / light / dark
     val theme: StateFlow<String> = _theme.asStateFlow()
-
-    /** 美术主题包（风格增强）：默认 / 青 / 墨 / 锦，覆盖主色 token */
-    private val _themePack = MutableStateFlow("默认")
-    val themePack: StateFlow<String> = _themePack.asStateFlow()
-    fun setThemePack(p: String) {
-        _themePack.value = p
-        viewModelScope.launch { repo.setMeta(MetaKeys.THEME_PACK, p) }
-    }
 
     private val _dynamicColor = MutableStateFlow(false) // 跟随系统壁纸取色（小米适配）
     val dynamicColor: StateFlow<Boolean> = _dynamicColor.asStateFlow()
@@ -152,6 +173,39 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _loadError = MutableStateFlow<String?>(null)
     val loadError: StateFlow<String?> = _loadError.asStateFlow()
 
+    /** 题库外置：首启下载引导是否已完成的判据（完成后不再强制弹下载页） */
+    private val _bankInitDone = MutableStateFlow(false)
+    val bankInitDone: StateFlow<Boolean> = _bankInitDone.asStateFlow()
+    fun setBankInitDone(v: Boolean) {
+        _bankInitDone.value = v
+        viewModelScope.launch { repo.setMeta(MetaKeys.BANK_INIT_DONE, v.toString()) }
+    }
+
+    /**
+     * 🔴 2026-09-28 学段真拆包：本地**已下载题库所属学段**（`"初中"` / `"高中"`）。
+     *
+     * 与 [examStage] 比对可判定「本地题库与当前报考学段是否一致」：
+     * 不一致 ⇒ 本地存的是旧学段数据，需在题库管理页重下（见 [bankStageOutdated]）。
+     * 空串 = 未记录（旧版本用户 / 从未下载）⇒ 不做一致性判定。
+     */
+    private val _bankDownloadStage = MutableStateFlow("")
+    val bankDownloadStage: StateFlow<String> = _bankDownloadStage.asStateFlow()
+    fun setBankDownloadStage(stage: String) {
+        if (stage.isNotEmpty() && stage !in BankStore.STAGE_OPTIONS) return
+        _bankDownloadStage.value = stage
+        viewModelScope.launch { repo.setMeta(MetaKeys.BANK_DOWNLOAD_STAGE, stage) }
+    }
+
+    /**
+     * 本地题库学段是否**已过期**（须重下）：
+     * 仅当「已记录下载学段」且「已设置报考学段」且两者不等时为 true。
+     */
+    fun bankStageOutdated(): Boolean {
+        val dl = _bankDownloadStage.value
+        val cur = _examStage.value
+        return dl.isNotEmpty() && cur.isNotEmpty() && dl != cur
+    }
+
     init {
         // 搬运 Application 启动兜底时记录的错误信息
         _loadError.value = (app as? App)?.loadError
@@ -160,11 +214,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val disc = repo.getMeta(MetaKeys.SUBJECT3_DISC) ?: repo.discList.firstOrNull() ?: "美术"
                 _subject3Disc.value = disc
+                // 🔴 学段：键缺失 ⇒ 空串（未设置，不过滤）。仅接受合法取值，脏数据回退未设置。
+                _examStage.value = repo.getMeta(MetaKeys.EXAM_STAGE)
+                    ?.takeIf { it in BankStore.STAGE_OPTIONS } ?: ""
                 _targetDay.value = repo.getMeta(MetaKeys.TARGET_DAY) ?: ""
                 _targetScore.value = repo.getMeta(MetaKeys.TARGET_SCORE)?.toIntOrNull() ?: 90
                 _knowledgeFav.value = parseFavSet(repo.getMeta(MetaKeys.KNOWLEDGE_FAV))
                 _theme.value = repo.getMeta(MetaKeys.THEME) ?: "system"
-                _themePack.value = repo.getMeta(MetaKeys.THEME_PACK) ?: "默认"
                 _dynamicColor.value = repo.getMeta(MetaKeys.DYNAMIC_COLOR) == "true"
                 _islandEnabled.value = repo.getMeta(MetaKeys.ISLAND_ENABLED) == "true"
                 _onboarded.value = repo.getMeta(MetaKeys.ONBOARDED) == "true"
@@ -183,6 +239,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 _webDavSyncPass.value = repo.getMeta(MetaKeys.SYNC_PASS) ?: ""
                 _lastSyncAt.value = repo.getMeta(MetaKeys.LAST_SYNC_AT)?.toLongOrNull() ?: 0
                 _isPro.value = repo.getMeta(MetaKeys.PRO_ACTIVATED) == "true"
+                _bankInitDone.value = repo.getMeta(MetaKeys.BANK_INIT_DONE) == "true"
+                _bankDownloadStage.value = repo.getMeta(MetaKeys.BANK_DOWNLOAD_STAGE)
+                    ?.takeIf { it in BankStore.STAGE_OPTIONS } ?: ""
                 _chapterConfig.value = repo.getChapterConfig()
                 _lessonTemplates.value = repo.getLessonTemplates()
 
@@ -206,6 +265,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setSubject3Disc(disc: String) {
         _subject3Disc.value = disc
         viewModelScope.launch { repo.setMeta(MetaKeys.SUBJECT3_DISC, disc) }
+    }
+
+    /**
+     * 🔴 2026-09-28 学段筛题：设置报考学段。传空串 = 清除限制（不过滤）。
+     * 非法取值忽略，避免脏数据写入。
+     */
+    fun setExamStage(stage: String) {
+        if (stage.isNotEmpty() && stage !in BankStore.STAGE_OPTIONS) return
+        _examStage.value = stage
+        viewModelScope.launch { repo.setMeta(MetaKeys.EXAM_STAGE, stage) }
     }
 
     fun setTargetDay(day: String) {
@@ -365,9 +434,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun todayStr() = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-    private fun yesterdayStr() =
-        LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+    private fun todayStr() = todayIso()
+    private fun yesterdayStr() = yesterdayIso()
 }
 
 /** 解析收藏集合字符串（逗号分隔，容错空串） */

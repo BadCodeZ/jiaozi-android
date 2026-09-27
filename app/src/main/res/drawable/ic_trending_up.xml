@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lucide 图标 "trending-up"（复刻 lucide-static v1.47.0 几何，ISC 许可）
+  线性风格：fill=none / stroke-width=2 / round cap+join，颜色交由 Icon(tint=…) 运行时着色。
+  用途：收集箱 · 统计卡「本周新增」，紫底白图标（上升折线 + 箭头）。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M16 7h6v6"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="m22 7-8.5 8.5-5-5L2 17"
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

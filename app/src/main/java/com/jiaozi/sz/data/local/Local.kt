@@ -79,6 +79,13 @@ interface DailyStatDao {
 
     @Query("SELECT * FROM daily_stat ORDER BY date DESC LIMIT :n")
     fun recent(n: Int): Flow<List<DailyStatEntity>>
+
+    /**
+     * 最早一条每日统计的日期（yyyy-MM-dd）；空表返回 null。
+     * 供「备考天数」等**累计制**指标使用（全工程禁用 streak）。
+     */
+    @Query("SELECT MIN(date) FROM daily_stat")
+    suspend fun earliestDate(): String?
 }
 
 @Dao
@@ -91,6 +98,10 @@ interface MetaDao {
 
     @Query("SELECT * FROM meta")
     fun all(): Flow<List<MetaEntity>>
+
+    /** 删除单个键（DELETE 不需要读取 value ⇒ 超大行也能删掉）。 */
+    @Query("DELETE FROM meta WHERE `key` = :k")
+    suspend fun delete(k: String)
 }
 
 /**
@@ -211,7 +222,18 @@ data class BookEntity(
     val unit: String = "",
     val lesson: String = "",
     val text: String = "",
-    val _mt: Long = 0
+    val _mt: Long = 0,
+    // ── 2026-09-22 按 08 号 F5/F1 高保真补齐（Room v9→v10）──
+    /** 解析状态：`parsed`（已解析）/ `pending`（待解析）/ `failed`（失败）；空串按 text 有无代理推断 */
+    val status: String = "",
+    /** 作者（BookIntroRow『作者』/ 行 meta 用） */
+    val author: String = "",
+    /** 页数；0 视为未知（显示「—」） */
+    val pages: Int = 0,
+    /** 文件体积（bytes）；0 则回退按 text 长度估算（formatDocSize） */
+    val sizeBytes: Long = 0,
+    /** 文件类型后缀：pdf / epub / txt（决定列表行前导色块配色） */
+    val ext: String = ""
 )
 
 @Dao

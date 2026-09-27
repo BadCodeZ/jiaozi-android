@@ -5,14 +5,17 @@ import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jiaozi.sz.App
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.MetaKeys
 import com.jiaozi.sz.xiaomi.StudyTimerService
 import com.jiaozi.sz.data.Repository
 import com.jiaozi.sz.data.local.DailyStatEntity
+import com.jiaozi.sz.data.local.InboxEntity
 import com.jiaozi.sz.data.local.ProgressEntity
 import com.jiaozi.sz.data.model.Question
 import com.jiaozi.sz.domain.PracticeConfig
 import com.jiaozi.sz.domain.PracticeEngine
+import com.jiaozi.sz.domain.PracticeReport
 import com.jiaozi.sz.domain.SpacedRepetition
 import com.jiaozi.sz.domain.answerIndex
 import com.jiaozi.sz.domain.parseOptions
@@ -22,16 +25,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import com.jiaozi.sz.util.todayIso
 
-data class AnswerRecord(
-    val correct: Boolean,
-    val cause: List<String>,
-    val subject: String = "",   // 所属科目（模考分科报告用）
-    val draft: String? = null,  // 主观题作答草稿（复盘可见）
-    val selected: Int = -1      // 客观题所选下标（复盘显示"我选了 X"）
-)
+/** 单题作答记录已上移到 domain（纯数据、被结算逻辑需要）；此别名保持 ui 侧引用零改动。 */
+typealias AnswerRecord = com.jiaozi.sz.domain.AnswerRecord
 
 data class PracticeState(
     val mode: String = "",
@@ -70,35 +67,113 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
     private val _config = MutableStateFlow(PracticeConfig())
     val config: StateFlow<PracticeConfig> = _config.asStateFlow()
 
+    /** 收藏题目 id 集合（meta 持久化；旧版无此键 → 空集，天然兼容旧用户） */
+    private val _favIds = MutableStateFlow<Set<String>>(emptySet())
+    val favIds: StateFlow<Set<String>> = _favIds.asStateFlow()
+
+    /** 题型组合偏好（choice / subjective / all，默认 choice） */
+    private val _practiceType = MutableStateFlow("choice")
+    val practiceType: StateFlow<String> = _practiceType.asStateFlow()
+    fun setPracticeType(v: String) {
+        if (v !in listOf("choice", "subjective", "all")) return
+        _practiceType.value = v
+        viewModelScope.launch { repo.setMeta(MetaKeys.PRACTICE_TYPE, v) }
+    }
+
     init {
         viewModelScope.launch {
             val mode = repo.getMeta(MetaKeys.PRACTICE_MODE) ?: "随机全科"
             val subj = repo.getMeta(MetaKeys.PRACTICE_SUBJ)?.takeIf { it.isNotBlank() }
             val num = repo.getMeta(MetaKeys.PRACTICE_NUM)?.toIntOrNull() ?: 20
             val interleave = repo.getMeta(MetaKeys.PRACTICE_INTERLEAVE) == "true"
-            _config.value = PracticeConfig(mode = mode, subj = subj, num = num, interleave = interleave)
+            val showAnswer = repo.getMeta(MetaKeys.PRACTICE_SHOW_ANSWER) == "true"
+            val chapters = repo.getMeta(MetaKeys.PRACTICE_CHAPTERS)?.takeIf { it.isNotBlank() }?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+            val chapter = repo.getMeta(MetaKeys.PRACTICE_CHAPTER)?.takeIf { it.isNotBlank() }
+            val disc = repo.getMeta(MetaKeys.PRACTICE_DISC)?.takeIf { it.isNotBlank() }
+            val shuffleOptions = repo.getMeta(MetaKeys.PRACTICE_SHUFFLE_OPTIONS) == "true"
+            val includeWrong = repo.getMeta(MetaKeys.PRACTICE_INCLUDE_WRONG) == "true"
+            val typeCombo = repo.getMeta(MetaKeys.PRACTICE_TYPE)?.takeIf { it.isNotBlank() }
+                ?.takeIf { it in listOf("choice", "subjective", "all") } ?: "choice"
+            _practiceType.value = typeCombo
+            _config.value = PracticeConfig(
+                mode = mode, subj = subj, num = num, interleave = interleave,
+                showAnswer = showAnswer, chapters = chapters,
+                chapter = chapter, disc = disc,
+                shuffleOptions = shuffleOptions, includeWrong = includeWrong,
+                typeCombo = typeCombo
+            )
+            _favIds.value = repo.getMeta(MetaKeys.PRACTICE_FAV)
+                ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() }?.toSet()
+                ?: emptySet()
         }
     }
 
     private suspend fun loadProgress(): Map<String, ProgressEntity> = repo.progressMap()
+
+    /**
+     * 🔴 2026-09-28 学段筛题：当前用户报考学段（meta `EXAM_STAGE` 持久化）。
+     * 未设置 / 空串 ⇒ null ⇒ 不启用学段过滤（兼容旧用户与未答题场景）。
+     */
+    private suspend fun currentStage(): String? =
+        repo.getMeta(MetaKeys.EXAM_STAGE)?.takeIf { it.isNotBlank() }
+
+    /**
+     * 空题池归因文案（🔴 2026-09-28 学段筛题的空状态处理）。
+     *
+     * 判定依据：把同一配置的 `stage` 摘掉再抽一次 ——
+     * - 摘掉后**能抽出题** ⇒ 空池完全由学段过滤造成 ⇒ 提示「当前学段暂无题目」并给出切学段的可操作指引；
+     * - 摘掉后仍为空 ⇒ 与学段无关（范围本身没题、章节名丢失等）⇒ 沿用原有文案。
+     */
+    private fun emptyMessage(
+        cfg: PracticeConfig,
+        all: List<Question>,
+        progress: Map<String, ProgressEntity>
+    ): String {
+        val stage = cfg.stage
+        if (stage != null && PracticeEngine.build(all, cfg.copy(stage = null), progress).isNotEmpty()) {
+            val other = if (stage == BankStore.STAGE_JUNIOR) BankStore.STAGE_SENIOR else BankStore.STAGE_JUNIOR
+            return "当前学段「$stage」在该范围暂无题目，可在「我的」里切到「$other」，或换个范围"
+        }
+        return "这个范围抽不出题目，换个范围试试"
+    }
 
     /** 统一入口：按配置抽题并开始 */
     fun start(cfg: PracticeConfig) = viewModelScope.launch {
         _state.value = _state.value.copy(loading = true)
         val progress = loadProgress()
         val all = repo.bank.exam
-        val qs = PracticeEngine.build(all, cfg, progress)
+        // 题型组合全局偏好优先：保证从任何入口（章节/薄弱/错因/随机）进入练习都尊重用户设定
+        // 🔴 学段口径：显式配置优先，未指定则回落用户报考学段偏好 ⇒ 七条入口全部自动受限。
+        val effective = cfg.copy(
+            typeCombo = _practiceType.value,
+            stage = cfg.stage ?: currentStage()
+        )
+        val qs = PracticeEngine.build(all, effective, progress)
         if (qs.isEmpty()) {
+            // 🔴 2026-09-25 补（G2）：此前空集静默 return，用户点「继续练习」看到的是「页面纹丝不动」。
+            //    空集的两个真实来源：①单章通道重启后章名丢失（已由 PRACTICE_CHAPTER 键修复）
+            //    ②该范围确实没题（如科三学科下该章无题）。无论哪种，都必须给出可见反馈。
+            // 🔴 2026-09-28 追加第三个来源：学段过滤后无题 ⇒ 文案改为可操作的切学段指引。
             _state.value = PracticeState(mode = cfg.mode, questions = emptyList())
+            Toast.makeText(getApplication(), emptyMessage(effective, all, progress), Toast.LENGTH_SHORT).show()
             return@launch
         }
+        begin(cfg.mode, qs, timeLimitSec = cfg.timeLimitSec, showAnswer = cfg.showAnswer)
         // 持久化偏好（对齐网页端 S.prefs）
         repo.setMeta(MetaKeys.PRACTICE_MODE, cfg.mode)
         cfg.subj?.let { repo.setMeta(MetaKeys.PRACTICE_SUBJ, it) }
         repo.setMeta(MetaKeys.PRACTICE_NUM, cfg.num.toString())
         repo.setMeta(MetaKeys.PRACTICE_INTERLEAVE, cfg.interleave.toString())
-        _config.value = cfg
-        begin(cfg.mode, qs)
+        repo.setMeta(MetaKeys.PRACTICE_SHOW_ANSWER, cfg.showAnswer.toString())
+        repo.setMeta(MetaKeys.PRACTICE_CHAPTERS, cfg.chapters.joinToString("|"))
+        // 🔴 G2 修复核心：单章通道（startChapter）的 chapter/section/disc 此前不落盘，
+        //    重启后 resumeLast() 拿不到章名 ⇒ 题池恒空。空串表示「无此维度」，回读时转 null。
+        repo.setMeta(MetaKeys.PRACTICE_CHAPTER, cfg.chapter ?: "")
+        repo.setMeta(MetaKeys.PRACTICE_DISC, cfg.disc ?: "")
+        repo.setMeta(MetaKeys.PRACTICE_SHUFFLE_OPTIONS, cfg.shuffleOptions.toString())
+        repo.setMeta(MetaKeys.PRACTICE_INCLUDE_WRONG, cfg.includeWrong.toString())
+        repo.setMeta(MetaKeys.PRACTICE_TYPE, effective.typeCombo)
+        _config.value = effective
     }
 
     /** 继续上次练习 */
@@ -107,7 +182,20 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         val subj = repo.getMeta(MetaKeys.PRACTICE_SUBJ)
         val num = repo.getMeta(MetaKeys.PRACTICE_NUM)?.toIntOrNull() ?: 20
         val interleave = repo.getMeta(MetaKeys.PRACTICE_INTERLEAVE) == "true"
-        start(PracticeConfig(mode = mode, subj = subj, num = num, interleave = interleave))
+        val showAnswer = repo.getMeta(MetaKeys.PRACTICE_SHOW_ANSWER) == "true"
+        val chapters = repo.getMeta(MetaKeys.PRACTICE_CHAPTERS)?.takeIf { it.isNotBlank() }?.split("|")?.filter { it.isNotBlank() } ?: emptyList()
+        // 🔴 G2 修复核心：回读单章 / 学科。空串 → null，避免把「无此维度」误判成「章名 = 空串」
+        //    （题池过滤 it.chapter == "" 仍恒空，等于没修）。
+        val chapter = repo.getMeta(MetaKeys.PRACTICE_CHAPTER)?.takeIf { it.isNotBlank() }
+        val disc = repo.getMeta(MetaKeys.PRACTICE_DISC)?.takeIf { it.isNotBlank() }
+        val shuffleOptions = repo.getMeta(MetaKeys.PRACTICE_SHUFFLE_OPTIONS) == "true"
+        val includeWrong = repo.getMeta(MetaKeys.PRACTICE_INCLUDE_WRONG) == "true"
+        val typeCombo = repo.getMeta(MetaKeys.PRACTICE_TYPE)?.takeIf { it.isNotBlank() }
+            ?.takeIf { it in listOf("choice", "subjective", "all") } ?: "choice"
+        _practiceType.value = typeCombo
+        start(PracticeConfig(mode = mode, subj = subj, num = num, interleave = interleave, showAnswer = showAnswer, chapters = chapters,
+            chapter = chapter, disc = disc,
+            shuffleOptions = shuffleOptions, includeWrong = includeWrong))
     }
 
     /** 清除偏好 */
@@ -116,6 +204,14 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         repo.setMeta(MetaKeys.PRACTICE_SUBJ, "")
         repo.setMeta(MetaKeys.PRACTICE_NUM, "20")
         repo.setMeta(MetaKeys.PRACTICE_INTERLEAVE, "false")
+        repo.setMeta(MetaKeys.PRACTICE_SHOW_ANSWER, "false")
+        repo.setMeta(MetaKeys.PRACTICE_CHAPTERS, "")
+        repo.setMeta(MetaKeys.PRACTICE_CHAPTER, "")
+        repo.setMeta(MetaKeys.PRACTICE_DISC, "")
+        repo.setMeta(MetaKeys.PRACTICE_SHUFFLE_OPTIONS, "false")
+        repo.setMeta(MetaKeys.PRACTICE_INCLUDE_WRONG, "false")
+        repo.setMeta(MetaKeys.PRACTICE_TYPE, "choice")
+        _practiceType.value = "choice"
         _config.value = PracticeConfig()
     }
 
@@ -132,8 +228,10 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.value = _state.value.copy(loading = true)
             val progress = loadProgress()
+            // 🔴 学段筛题：错题本同样只显示与报考学段匹配（含通用）的题
             val wrongs = PracticeEngine.wrong(repo.bank.exam, progress)
                 .filter { it.subject != "科三" || it.disc == disc }
+                .filter { BankStore.stageMatches(it, currentStage()) }
             if (wrongs.isEmpty()) {
                 _state.value = _state.value.copy(loading = false)
                 Toast.makeText(getApplication(), "当前没有错题，先去练习里标记吧", Toast.LENGTH_SHORT).show()
@@ -148,7 +246,9 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             // 章节权重（来自章节编辑页配置）；为空时蓝图退化为均匀抽取
             val weights = repo.getChapterConfig().mapValues { it.value.weight }
-            val qs = PracticeEngine.blueprint(repo.bank.exam, disc, count, weights)
+            val stage = currentStage()
+            // 🔴 学段筛题：模考蓝图三科题源统一受限（本学段 + 通用题）
+            val qs = PracticeEngine.blueprint(repo.bank.exam, disc, count, weights, stage)
             // 题库不足时提示实际抽取数量，避免用户以为满额开考
             if (qs.size < count) {
                 Toast.makeText(
@@ -156,6 +256,17 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
                     "题库可用 ${qs.size} 题，已按实际抽取（少于请求 $count 题）",
                     Toast.LENGTH_LONG
                 ).show()
+            }
+            // 🔴 学段筛空（蓝图链路）：直接提示可操作的切学段指引，避免空卷开考
+            if (qs.isEmpty()) {
+                val other = if (stage == BankStore.STAGE_JUNIOR) BankStore.STAGE_SENIOR else BankStore.STAGE_JUNIOR
+                val msg = if (stage != null) {
+                    "当前学段「$stage」暂无可用于模考的题目，可在「我的」里切到「$other」"
+                } else {
+                    "题库暂无可用于模考的题目，请先下载题库"
+                }
+                Toast.makeText(getApplication(), msg, Toast.LENGTH_LONG).show()
+                return@launch
             }
             begin("全科模考", qs, timeLimitSec = timeLimitSec)
         }
@@ -167,28 +278,37 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 从题库点击某题进入练习：用该题同章节组一套题，避免单题太单薄 */
     fun startByQuestion(q: Question) = viewModelScope.launch {
+        // 🔴 学段筛题：若被点题目本身与报考学段不符（历史数据/搜索命中），仍保留该题本身，
+        //    但同章节扩充的题池必须受限，避免顺带混入不匹配学段的大量题目。
+        val stage = currentStage()
         val pool = repo.questionsByChapter(q.subject, q.chapter).filter {
             q.subject != "科三" || it.disc == q.disc
         }
-        val ordered = listOf(q) + pool.filter { it.id != q.id }.shuffled()
-        begin("章节练习", ordered.take(20))
+        val combined = (listOf(q) + pool.filter { it.id != q.id && BankStore.stageMatches(it, stage) }).shuffled()
+        val filtered = PracticeEngine.filterByType(combined, _practiceType.value, stage)
+        val ordered = (if (filtered.isEmpty()) combined else filtered).take(20)
+        begin("章节练习", ordered)
     }
 
     /** AI 题库练习：优先用用户生成的题（按学科/章节过滤），为空则回落到该科目内置题 */
     fun startUserBank(subject: String, scope: String) = viewModelScope.launch {
+        // 🔴 学段筛题：内置题回落后受限（用户自建题无学段字段，恒视作通用题）。
+        val stage = currentStage()
         val user = repo.allUserQuestions().map { it.toQuestion() }
         val pool = if (user.isEmpty()) {
             repo.bank.exam.filter { it.subject == subject }
+                .filter { BankStore.stageMatches(it, stage) }
         } else {
             user.filter { it.subject == subject && (scope.isBlank() || it.disc == scope || it.chapter == scope) }
                 .ifEmpty { user }
         }
-        begin("AI 题库", PracticeEngine.weak(pool, loadProgress()))
+        val filtered = PracticeEngine.filterByType(pool, _practiceType.value, stage)
+        begin("AI 题库", PracticeEngine.weak(if (filtered.isEmpty()) pool else filtered, loadProgress()))
     }
 
-    private fun begin(mode: String, questions: List<Question>, timeLimitSec: Int? = null) {
+    private fun begin(mode: String, questions: List<Question>, timeLimitSec: Int? = null, showAnswer: Boolean = false) {
         StudyTimerService.resetAll() // 新开一套练习，专注计时从头计
-        _state.value = PracticeState(mode = mode, questions = questions, index = 0, timeLimitSec = timeLimitSec)
+        _state.value = PracticeState(mode = mode, questions = questions, index = 0, timeLimitSec = timeLimitSec, showAnswer = showAnswer)
         refreshHistoryDraft(0)
         startCapsule() // 小米灵动胶囊：练习开始即上岛（前台计时）
     }
@@ -235,6 +355,29 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(draft = text)
     }
 
+    /** 收藏 / 取消收藏当前题（写 meta，跨会话保留；与旧版共用 meta 表，互不影响） */
+    fun toggleFav(qid: String) = viewModelScope.launch {
+        val cur = _favIds.value.toMutableSet()
+        if (!cur.add(qid)) cur.remove(qid)
+        _favIds.value = cur
+        repo.setMeta(MetaKeys.PRACTICE_FAV, cur.joinToString(","))
+    }
+
+    /** 把当前题（题干+笔记）存进「收集箱」，复用现有 inbox 表（type=question） */
+    fun saveToInbox(q: Question, note: String) = viewModelScope.launch {
+        val now = System.currentTimeMillis()
+        repo.upsertInbox(
+            InboxEntity(
+                id = "q_" + q.id,
+                type = "question",
+                content = q.q,
+                note = note,
+                createdAt = now,
+                _mt = now
+            )
+        )
+    }
+
     fun revealAnswer() {
         if (_state.value.answered) return
         _state.value = _state.value.copy(showAnswer = true)
@@ -271,9 +414,37 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(subjectiveResult = result)
     }
 
+    /**
+     * 错因标记（**可选动作**，不阻塞「下一题」）。
+     *
+     * 🔴 2026-09-24 口径变更：原实现要求「答错必须选 ≥1 项错因才能下一题」，
+     *   且错因入口在反馈卡中排在解析**之前**、占一整张白底嵌套卡 ⇒ 视觉重量压过解析（本末倒置）。
+     *   现改为：错因折叠在解析**之后**、可标可不标；解析成为反馈卡主内容。
+     *
+     * 因此提交后仍可能再点 chip 补标 ⇒ 必须**实时落库**（提交时的 `submit()` 已过去，
+     * 错因不在那一刻的快照里，故此处直接写回进度，避免「标了却没存」）。
+     */
     fun toggleCause(cause: String) {
-        val s = _state.value.causeSelected
-        _state.value = _state.value.copy(causeSelected = if (cause in s) s - cause else s + cause)
+        val st = _state.value
+        val now = if (cause in st.causeSelected) st.causeSelected - cause else st.causeSelected + cause
+        val q = st.current
+        _state.value = st.copy(
+            causeSelected = now,
+            // 同步内存作答记录 ⇒ 结算页「错因分布」即时准确（答对不记错因）
+            results = if (st.answered && q != null && !st.correct) {
+                val r = st.results[q.id]
+                if (r != null) st.results + (q.id to r.copy(cause = now.toList())) else st.results
+            } else st.results
+        )
+        // 已作答（且答错）后的补标：立刻更新进度中的 cause
+        if (st.answered && !st.correct && q != null) {
+            viewModelScope.launch {
+                val prev = repo.getProgress(q.id) ?: return@launch
+                repo.upsertProgress(
+                    prev.copy(cause = now.joinToString(","), _mt = System.currentTimeMillis())
+                )
+            }
+        }
     }
 
     /** 提交当前题：判定对错、落盘进度、更新每日统计 */
@@ -295,10 +466,14 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         val wrongBook = !correct
         // 主观题草稿随进度落盘，复盘可见当初作答
         val draftToSave = if (q.isSubjective) st.draft else prev.draft
+        // 🔴 2026-09-24：错因改为「可选」后，提交时通常**尚未标注**（chips 折叠在解析之后，
+        //   提交瞬间 causeSelected 必为空）。此时**不可写空串**，否则会把该题历史错因抹掉——
+        //   错因的实际落盘改由 `toggleCause()` 在用户点选时实时完成。
+        val causeStr = if (correct || cause.isEmpty()) prev.cause else cause.joinToString(",")
         repo.upsertProgress(
             prev.copy(
                 right = right, wrong = wrong, due = due, wrongBook = wrongBook,
-                cause = if (correct) prev.cause else cause.joinToString(","),
+                cause = causeStr,
                 lastResult = if (correct) "right" else "wrong",
                 draft = draftToSave, _mt = System.currentTimeMillis()
             )
@@ -365,7 +540,7 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun updateDaily(correct: Boolean) = viewModelScope.launch {
-        val date = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
+        val date = todayIso()
         val prev = repo.getDailyStat(date) ?: DailyStatEntity(date = date)
         repo.upsertDailyStat(
             prev.copy(
@@ -375,43 +550,23 @@ class PracticeViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
-    /** 结算：正确率 + 主要错因 */
+    /** 结算：正确率 + 主要错因。计算口径下沉 domain/PracticeReport。 */
     fun summary(): Pair<Float, Map<String, Int>> {
-        val rs = _state.value.results.values
-        val total = rs.size
-        val right = rs.count { it.correct }
-        val acc = if (total == 0) 0f else right.toFloat() / total
-        val cause = mutableMapOf<String, Int>()
-        for (r in rs) for (c in r.cause) cause[c] = cause.getOrDefault(c, 0) + 1
-        return acc to cause
+        val s = PracticeReport.summary(_state.value.results.values)
+        return s.accuracy to s.causeCounts
     }
 
-    /** 模考分科报告：科一/科二/科三 各自 (正确, 总数) */
-    fun summaryBySubject(): Map<String, Pair<Int, Int>> {
-        val out = mutableMapOf<String, Pair<Int, Int>>()
-        for ((id, r) in _state.value.results) {
-            val subj = r.subject.ifBlank { _state.value.questions.find { it.id == id }?.subject ?: "" }
-            if (subj.isBlank()) continue
-            val (rt, tot) = out.getOrDefault(subj, 0 to 0)
-            out[subj] = (rt + if (r.correct) 1 else 0) to (tot + 1)
-        }
-        return out
-    }
+    /** 模考分科报告：科一/科二/科三 各自 (正确, 总数)。计算口径下沉 domain/PracticeReport。 */
+    fun summaryBySubject(): Map<String, Pair<Int, Int>> =
+        PracticeReport.bySubject(_state.value.results, _state.value.questions)
 
-    /** 分数预估（百分制）：正确率 × 100，模考用 */
-    fun scoreEstimate(): Int {
-        val (acc, _) = summary()
-        return (acc * 100).toInt()
-    }
+    /** 分数预估（百分制）：正确率 × 100，模考用。计算口径下沉 domain/PracticeReport。 */
+    fun scoreEstimate(): Int =
+        PracticeReport.scoreEstimate(PracticeReport.summary(_state.value.results.values))
 
-    /** 错题清单（题 + 错因），供 AI 讲评使用 */
-    fun wrongItems(): List<Pair<Question, String>> {
-        val st = _state.value
-        return st.questions.mapNotNull { q ->
-            val r = st.results[q.id] ?: return@mapNotNull null
-            if (r.correct) null else q to r.cause.joinToString("、")
-        }
-    }
+    /** 错题清单（题 + 错因），供 AI 讲评使用。计算口径下沉 domain/PracticeReport。 */
+    fun wrongItems(): List<Pair<Question, String>> =
+        PracticeReport.wrongItems(_state.value.questions, _state.value.results)
 
     override fun onCleared() {
         super.onCleared()

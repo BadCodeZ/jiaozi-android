@@ -1,5 +1,6 @@
 package com.jiaozi.sz.data.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** 内置题库（bank.json）：exam + papers */
@@ -17,6 +18,14 @@ data class Bank(
 data class Question(
     val id: String,
     val subject: String,            // 科一 / 科二 / 科三
+    /**
+     * 报考学段（2026-09-28 学段筛题）：`"初中"` / `"高中"` / null。
+     * null = **通用题**（初高中同卷的科一科二、题面无学段信号的科三同名分卷、以及判定冲突的保守情形）。
+     * 参见 `工具/stage_rules.py`：科一/科二整包恒通用；科三按子科目名分流
+     * （初中独有「历史与社会/科学」锁初中，高中独有「思想政治/通用技术」锁高中，其余 13 科逐题判定）。
+     * 旧题库 JSON 无此键 ⇒ 默认 null（通用），向下兼容。
+     */
+    val stage: String? = null,
     val chapter: String,
     val section: String? = null,
     val point: String? = null,
@@ -89,6 +98,12 @@ data class Knowledge(
     val content: String,
     val link: String = "",
     val tags: String = "",
+    /**
+     * 知识点类型（09 号规范 E4「知识卡前导徽章」）。
+     * 四类：brain(蓝·识记理解) / bulb(紫·方法策略) / target(红·问题解决) / menu(青·分类脉络)。
+     * 默认值保证旧数据（无该字段）可解析。
+     */
+    @SerialName("knowledge_type") val knowledgeType: String = "brain",
     val favAt: String? = null,
     val due: String? = null
 )

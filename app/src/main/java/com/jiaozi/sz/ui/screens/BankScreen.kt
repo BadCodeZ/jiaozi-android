@@ -1,25 +1,48 @@
 package com.jiaozi.sz.ui.screens
 
+import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.AppColors
+import com.jiaozi.sz.ui.components.CollapsingTopBlocks
+import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.HubChip
+import com.jiaozi.sz.ui.components.NavRowCard
+import com.jiaozi.sz.ui.components.SectionTitleDot
+import com.jiaozi.sz.ui.components.StatCard
+import com.jiaozi.sz.ui.components.hubDragToScroll
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Card
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,225 +52,340 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.jiaozi.sz.data.model.Question
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.LocalPracticeVm
 import com.jiaozi.sz.ui.Motion
 import com.jiaozi.sz.ui.PracticeViewModel
-import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.ui.Screen
-import kotlinx.coroutines.delay
+import com.jiaozi.sz.ui.reduceMotionNow
 
+/**
+ * 一级 Tab · 题库（05 号 `bank.main`，两段式布局的标准范例）。
+ *
+ * 结构（🔴 不许回退）：
+ * 非滚动外框 Column（折叠已停用，不挂任何监听）
+ * → `CollapsingTopBlocks[Hero + 3 列统计 + 搜索胶囊 + 7 宫格]`（挂 `hubDragToScroll(listState)`）
+ *（2026-09-25 晚：原 `CollapsedHubBar` 收起态栏已随折叠状态机退场删除）
+ * → **唯一滚动容器** `LazyColumn(Modifier.fillMaxWidth().weight(1f))`。
+ *
+ * 🔴 本页历史故障：`LazyColumn` 漏 `Modifier.weight(1f)` ⇒ 「整页滑不动 + 悬浮导航栏被空底
+ * 衬成一块白色遮罩」（05 号 `critical_history`）。该 `weight(1f)` 是**禁止回退项**。
+ *
+ * 🔴 二次故障（2026-09-18 修复）：固定带本身是非滚动 Column，内部无任何滚动节点 ⇒
+ * 手指落在 Hero / 统计卡 / 搜索胶囊 / 快捷入口上**既不滚列表也不折叠**，整页像"死机"。
+ * 修法＝固定带挂 `hubDragToScroll(listState)` 做手势直通（详见该 modifier KDoc）。
+ *
+ * 关键设计约束（05 号）：
+ *  - E3 搜索是**通栏胶囊**（整条可点 → `search` 路由），**不是**就地输入的 `TextField`
+ *    （与 `search` 页职责重复，属 anti_pattern）。
+ *  - E4 七个资料入口**必须全部留在固定带内**（4 列 × 2 行），不得拆一半到滚动区。
+ *  - E6『章节题量』标题作为滚动容器首个 item，**不留在固定带**（否则标题与内容视觉分离）。
+ *  - 学科筛选（05 号未收录件）按 E6 先例**下沉进滚动区**：它是章节清单的过滤器，
+ *    留在固定带会白占 59dp，把本就只剩 76dp 的列表区挤到几乎不可见。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BankScreen(nav: NavHostController) {
     val appVm: AppViewModel = LocalAppVm.current
     val practiceVm: PracticeViewModel = LocalPracticeVm.current
     val repo = appVm.repo
     val disc by appVm.subject3Disc.collectAsStateWithLifecycle()
+    val progress by appVm.progressMap.collectAsStateWithLifecycle()
     val rm = reduceMotionNow(LocalContext.current)
 
-    var query by remember { mutableStateOf("") }
-    var debounced by remember { mutableStateOf("") }
-    LaunchedEffect(query) { delay(150); debounced = query } // 150ms 防抖（防回归项）
-
-    val results: List<Question> = remember(debounced) {
-        if (debounced.isNotBlank()) repo.search(debounced) else emptyList()
-    }
-    var filter by remember { mutableStateOf("全部") }
-
-    val onQuestionClick: (Question) -> Unit = { q ->
-        practiceVm.startByQuestion(q)
-        nav.navigate(Screen.Practice.route)
-    }
-
-    // 首入淡入：改善「硬切」感知（题库数据为内存加载、瞬时就绪，淡入仅为过渡层次）
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { appeared = true }
     val contentAlpha by animateFloatAsState(if (appeared) 1f else 0f, tween(Motion.duration(rm, Motion.SLOW)), label = "bankFade")
-    Column(Modifier.fillMaxSize().alpha(contentAlpha)) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text("搜索题目 / 解析（最多 200 条）") },
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
-        )
-        if (debounced.isNotBlank()) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("找到 ${results.size} 条", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                OutlinedButton(onClick = { query = ""; debounced = "" }) {
-                    Text("返回大纲")
-                }
-            }
-            LazyColumn(Modifier.padding(horizontal = 16.dp).navigationBarsPadding()) {
-                items(results, contentType = { "q" }) { q -> QuestionRow(q, onClick = { onQuestionClick(q) }) }
-            }
-        } else {
-            // 浏览：按科目/章节（折叠 + LazyColumn）
-            LazyColumn(Modifier.padding(16.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item { Text("题库浏览", style = MaterialTheme.typography.titleMedium) }
-                item { Text("${repo.bank.exam.size} 题 · 科三当前学科：$disc", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline) }
 
-                // 快捷入口：继续上次 / 薄弱优先
-                item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        QuickEntryCard("继续上次", "按上次配置开练", Modifier.weight(1f)) { practiceVm.resumeLast(); nav.navigate(Screen.Practice.route) }
-                        QuickEntryCard("薄弱优先", "专攻易错知识点", Modifier.weight(1f)) { practiceVm.startWeak(disc); nav.navigate(Screen.Practice.route) }
+    // 学科筛选：默认「科一」（与高保真一致）
+    val subjectTabs = listOf("科一", "科二", "科三", "全部")
+    var filter by remember { mutableStateOf("科一") }
+
+    // ── 统计三列（E2）──
+    val totalQuestions = repo.bank.exam.size
+    val practicedCount = progress.values.count { it.right + it.wrong > 0 }
+    val wrongCount = remember(progress) { progress.values.sumOf { it.wrong } }
+
+    // ── 章节题量数据（E7）──
+    val chapterData = remember(repo, progress, disc, filter) {
+        val subjects = if (filter == "全部") listOf("科一", "科二", "科三") else listOf(filter)
+        subjects.flatMap { subj ->
+            val syllabus = repo.syllabus.find { it.subject == subj }
+            syllabus?.chapters?.map { ch ->
+                val qs = repo.bank.exam.filter { it.subject == subj && it.chapter == ch.name && (subj != "科三" || it.disc == disc) }
+                val practiced = qs.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
+                val right = qs.sumOf { q -> progress[q.id]?.right ?: 0 }
+                val wrong = qs.sumOf { q -> progress[q.id]?.wrong ?: 0 }
+                val acc = if (practiced > 0) right * 100 / practiced else 0
+                val pct = if (qs.isNotEmpty()) practiced * 100 / qs.size else 0
+                ChapterDisplay(subj, ch.name, qs.size, practiced, wrong, acc, pct)
+            } ?: emptyList()
+        }.filter { it.total > 0 }
+    }
+
+    val listState = rememberLazyListState()
+
+    // 七个资料入口（E4）：4 列 + 3 列，全部留在固定带内
+    val quickRow1 = listOf(
+        Triple("book", "教材", "books"),
+        Triple("text", "课标", "curric"),
+        Triple("grid", "章节", "chapters"),
+        Triple("inbox", "收集箱", "inbox")
+    )
+    val quickRow2 = listOf(
+        Triple("note", "知识库", "knowledge"),
+        Triple("lesson", "备课组", "lesson"),
+        Triple("proof", "校订", "proof")
+    )
+
+    // 🔴 2026-09-19 沉浸 Hero（对齐高保真稿）：本页各元素本就自带 sp.16
+    //（统计行 / 列表 contentPadding），所以只需把 Hero 设为 immersive；
+    //「溢出到屏幕顶 + 对外少报高度」由 HeroHeader 内部完成，详情见其 KDoc。
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    // 🔴 固定带拖动（hubDragToScroll）与列表拖动（LazyColumn 自身）是**两个互斥命中的滚动节点**：
+    //    一次手势只驱动命中的那一个 ⇒ 不会双倍滚动。折叠监听 2026-09-25 已随死码清理移除。
+    Column(
+        Modifier
+            .fillMaxSize()
+            .alpha(contentAlpha)
+            .background(AppColors.bg)
+    ) {
+        // ══════════ 顶部常驻：仅 Hero（2026-09-21 折叠停用；信息带已下沉进滚动区）══════════
+        // Hero 常驻、不随滚动走：沉浸 Hero 若滚出，状态栏区域会露出页面底色而白色图标不可见。
+        CollapsingTopBlocks(spacing = 12.dp, modifier = Modifier.hubDragToScroll(listState)) {
+            // ── E1 Hero 题库头（with_action：右上 40dp 搜索键 · 通栏沉浸）──
+            HeroHeader(
+                title = "题库",
+                subtitle = "${"%,d".format(totalQuestions)} 题 · 三科全覆盖",
+                icon = appPainter("book"),
+                immersive = true,
+                statusBarInset = statusBarTop,
+                action = {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.18f))
+                            .clickable { nav.navigate("search") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(appPainter("search"), contentDescription = "搜索", tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
+            )
 
-                // 科目筛选 chips
-                item {
-                    val chips = listOf("全部", "科一", "科二", "科三")
-                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        chips.forEach { c ->
-                            FilterChip(selected = filter == c, onClick = { filter = c }, label = { Text(c) })
+        }
+
+        // 2026-09-25 晚：原 E5 收起态紧凑栏已整块删除（折叠状态机整体退场，收起态不存在）。
+
+        // ══════════ 下半段：唯一滚动容器（🔴 weight(1f) 禁止回退）══════════
+        // 折叠已停用（2026-09-25 死码清理）⇒ 本容器只负责滚动，不挂任何折叠监听。
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 76.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // ── 学科筛选（原固定带件，下沉为滚动区首项）──
+            // 05 号 E1–E10 未收录本件；它是「章节清单的过滤器」，与 E6 同属「属于列表的控件」
+            // ⇒ 按 E6 先例下沉。固定带因此减高 47dp+12dp 间距，首屏列表可视区从 11dp 增至约 70dp。
+            // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──
+            item(key = "hubBand") {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // ── E2 题库统计卡组（3col）──
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // 三卡均：圆徽章 + 标签同行 → 大数字 + 通栏进度条 + 语义浅底（对齐高保真 B_top_tall）
+                    // 2026-09-20 ⑤ 值色口径：三卡均为「纯计数」，数值一律中性深色；
+                    // 语义色只落在徽章底色 / 图标 tint / 进度条（与高保真图一致，含负向的「错题待清」也不着色）。
+                    StatCard(
+                        icon = "book", value = "$totalQuestions", unit = "题", label = "总题量",
+                        modifier = Modifier.weight(1f),
+                        valueColor = AppColors.textPrimary,
+                        iconTint = Color.White, iconBg = AppColors.blue,
+                        iconShape = CircleShape, iconSize = 22.dp,
+                        labelInline = true, containerColor = AppColors.blueBg,
+                        containerHPad = 12.dp,
+                        progress = 1f, progressColor = AppColors.blue
+                    )
+                    StatCard(
+                        icon = "check", value = "$practicedCount", unit = "题", label = "已练",
+                        modifier = Modifier.weight(1f),
+                        valueColor = AppColors.textPrimary,
+                        iconTint = Color.White, iconBg = AppColors.success,
+                        iconShape = CircleShape, iconSize = 22.dp,
+                        labelInline = true, containerColor = AppColors.greenBg,
+                        containerHPad = 12.dp,
+                        progress = (practicedCount.toFloat() / totalQuestions.coerceAtLeast(1)).coerceIn(0f, 1f),
+                        progressColor = AppColors.success
+                    )
+                    val wrongAccent = if (wrongCount > 0) AppColors.danger else AppColors.success
+                    StatCard(
+                        icon = "inbox", value = "$wrongCount", unit = "题", label = "错题待清",
+                        modifier = Modifier.weight(1f),
+                        valueColor = AppColors.textPrimary,
+                        iconTint = Color.White, iconBg = wrongAccent,
+                        iconShape = CircleShape, iconSize = 22.dp,
+                        labelInline = true,
+                        containerColor = if (wrongCount > 0) AppColors.redBg else AppColors.greenBg,
+                        containerHPad = 12.dp,
+                        progress = (wrongCount.toFloat() / practicedCount.coerceAtLeast(1)).coerceIn(0f, 1f),
+                        progressColor = wrongAccent
+                    )
+                }
+
+                // ── E3 搜索胶囊（通栏 / 44dp / r.full，整条可点 → search）──
+                SearchPill(modifier = Modifier) { nav.navigate("search") }
+
+                // ── E4 快捷入口组（4 列 + 3 列，均在固定带内）──
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    quickRow1.forEach { (icon, label, route) ->
+                        HubChip(icon, label, { nav.navigate(route) }, Modifier.weight(1f))
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    quickRow2.forEach { (icon, label, route) ->
+                        HubChip(icon, label, { nav.navigate(route) }, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
+
+                // 🔴 2026-09-28 题库外置：题库管理入口（下载/移除科目包 + 增删自加题）
+                NavRowCard(
+                    icon = "download",
+                    title = "题库管理",
+                    subtitle = "下载 / 移除科目包，增删本地自加题",
+                    iconTint = AppColors.blue,
+                    iconBg = AppColors.blueLight,
+                    onClick = { nav.navigate("bankmanage") }
+                )
+                }
+            }
+
+            item(key = "subjectFilter") {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    subjectTabs.forEach { tab ->
+                        val selected = tab == filter
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.clickable { filter = tab }
+                        ) {
+                            Text(
+                                if (tab == "全部") "全部" else BankStore.shortName(tab),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (selected) AppColors.blue else AppColors.textSecondary,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                            Box(
+                                Modifier
+                                    .width(24.dp)
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(if (selected) AppColors.blue else Color.Transparent)
+                            )
                         }
                     }
                 }
-
-                val subjectsToShow = if (filter == "全部") listOf("科一", "科二", "科三") else listOf(filter)
-                subjectsToShow.forEach { subj ->
-                    item(key = "subj-$subj") {
-                        SubjectTree(
-                            subj = subj,
-                            repo = repo,
-                            disc = disc,
-                            onSectionClick = { chapter, section ->
-                                practiceVm.startChapter(subj, chapter, section, 30, if (subj == "科三") disc else null)
-                                nav.navigate(Screen.Practice.route)
-                            }
-                        )
-                    }
-                }
             }
-        }
-    }
-}
 
-/** 科三章节显示名：按当前学科加后缀（如「一、学科知识(语文)」），切换学科即变，与网页端一致 */
-private fun chapterLabel(subj: String, baseName: String, disc: String): String =
-    if (subj == "科三" && disc.isNotBlank()) "$baseName($disc)" else baseName
+            // ── E6 章节分组标题（dot 变体，下沉为 item）──
+            item(key = "chapterTitle") { SectionTitleDot("章节题量", trailing = "共 ${chapterData.size} 章") }
 
-@Composable
-private fun SubjectTree(
-    subj: String,
-    repo: com.jiaozi.sz.data.Repository,
-    disc: String,
-    onSectionClick: (String, String?) -> Unit
-) {
-    var expanded by remember(subj) { mutableStateOf(false) }
-    val syllabus = repo.syllabus.find { it.subject == subj }
-    val chapters = syllabus?.chapters ?: emptyList()
-    val total = repo.countBySubject(subj, if (subj == "科三") disc else null)
-
-    Card(
-        Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Column {
-            Row(
-                Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("$subj · ${syllabus?.name?.let { if (subj == "科三") it.replace("美术", disc) else it } ?: ""}", style = MaterialTheme.typography.titleSmall)
-                    Text("$total 题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-                }
-                Text(if (expanded) "收起" else "展开", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            }
-            if (expanded) {
-                chapters.forEach { ch ->
-                    ChapterNode(
-                        subj = subj,
-                        chapter = ch,
-                        repo = repo,
-                        disc = disc,
-                        onSectionClick = onSectionClick
+            if (chapterData.isEmpty()) {
+                // ── E10 空态 ──
+                item(key = "chapterEmpty") {
+                    EmptyHint(
+                        icon = "book",
+                        title = "题库还是空的",
+                        hint = "先去章节管理导入或建立章节",
+                        modifier = Modifier.fillMaxWidth(),
+                        action = { Button(onClick = { nav.navigate("chapters") }) { Text("章节管理") } }
                     )
-                    HorizontalDivider(Modifier.padding(start = 24.dp, end = 12.dp))
+                }
+            } else {
+                // ── E7 章节题量卡（CMP-LISTROW / nav 变体：标题 + 指标 + 进度条 + chevron）──
+                items(chapterData, key = { "${it.subject}|${it.name}" }, contentType = { "chapter" }) { ch ->
+                    NavRowCard(
+                        icon = "book",
+                        title = ch.name,
+                        subtitle = "${ch.total} 题 · 已练 ${ch.practiced} · 错 ${ch.wrong}",
+                        iconTint = AppColors.blue,
+                        iconBg = AppColors.blueLight,
+                        progress = ch.pct / 100f,
+                        progressColor = AppColors.blue,
+                        onClick = {
+                            practiceVm.startChapter(ch.subject, ch.name, null, 30, if (ch.subject == "科三") disc else null)
+                            nav.navigate(Screen.Practice.route)
+                        }
+                    )
                 }
             }
         }
     }
 }
 
+/** E3 搜索胶囊：通栏 44dp / r.full / surfaceContainer 实底 + 1dp outlineVariant 描边 */
 @Composable
-private fun ChapterNode(
-    subj: String,
-    chapter: com.jiaozi.sz.data.model.SyllabusChapter,
-    repo: com.jiaozi.sz.data.Repository,
-    disc: String,
-    onSectionClick: (String, String?) -> Unit
-) {
-    var expanded by remember(chapter.name, disc) { mutableStateOf(false) }
-    val chCount = repo.countChapter(subj, chapter.name, null, if (subj == "科三") disc else null)
-    val label = chapterLabel(subj, chapter.name, disc)
-
-    Column {
-        Row(
-            Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(start = 24.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text("$chCount 题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
-        }
-        if (expanded) {
-            chapter.sections.forEach { sec ->
-                val secCount = repo.countChapter(subj, chapter.name, sec, if (subj == "科三") disc else null)
-                if (secCount > 0) {
-                    Row(
-                        Modifier.fillMaxWidth().clickable { onSectionClick(chapter.name, sec) }.padding(start = 44.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(sec, style = MaterialTheme.typography.bodySmall)
-                        Text("$secCount 题 · 去练", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuestionRow(q: Question, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 4.dp)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("${q.subject} · ${q.chapter}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            Text(q.q, style = MaterialTheme.typography.bodyMedium, maxLines = 3)
-        }
-    }
-}
-
-@Composable
-private fun SpacerFill(height: androidx.compose.ui.unit.Dp) {
-    androidx.compose.foundation.layout.Spacer(Modifier.height(height))
-}
-
-@Composable
-private fun QuickEntryCard(title: String, sub: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
-        modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+private fun SearchPill(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(50))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-            Text(sub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Icon(
+            appPainter("search"),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
+        )
+        Text(
+            "搜索题目 / 知识点 / 章节",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 14.sp,
+            maxLines = 1
+        )
     }
 }
+
+private data class ChapterDisplay(
+    val subject: String,
+    val name: String,
+    val total: Int,
+    val practiced: Int,
+    val wrong: Int,
+    val acc: Int,
+    val pct: Int
+)

@@ -57,13 +57,16 @@ class StudyWidget : AppWidgetProvider() {
         // 兜底：仅在极端情况下构建（桌面组件独立进程）
         val db = com.jiaozi.sz.data.local.AppDatabase.build(context)
         return Repository(
-            AssetLoader.loadBank(context),
+            // 🔴 2026-09-28 题库外置：改读本地已下载科目包（filesDir/banks/*.json），不再依赖 assets/bank.json（已删除瘦身）
+            com.jiaozi.sz.data.BankStore.loadLocal(context),
             AssetLoader.loadSyllabus(context),
             AssetLoader.loadAutoSyll(context),
             AssetLoader.loadKnowledge(context),
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
             db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(),
-            db.docIndexDao(), db.proofReviewDao()
+            db.docIndexDao(), db.proofReviewDao(),
+            // 与 App 用同一路径：同步信封基线（仅桌面组件兜底进程才会走到这里）
+            com.jiaozi.sz.data.RawEnvStore(java.io.File(context.filesDir, "sync_env_raw.json"))
         )
     }
 }

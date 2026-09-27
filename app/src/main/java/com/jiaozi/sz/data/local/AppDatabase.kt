@@ -13,7 +13,7 @@ import android.content.Context
         LessonEntity::class, InboxEntity::class, AiChatEntity::class, CurricEntity::class, BookEntity::class,
         ProofReviewEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -123,6 +123,20 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v9→v10：books 表按 08 号高保真补齐 5 列（status / author / pages / sizeBytes / ext）。
+         * 全部带默认值 ⇒ 存量教材数据零丢失；`status` 留空，由 UI 按 text 有无代理推断。
+         */
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `books` ADD COLUMN `status` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `books` ADD COLUMN `author` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `books` ADD COLUMN `pages` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `books` ADD COLUMN `sizeBytes` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE `books` ADD COLUMN `ext` TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -133,7 +147,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "jiaozi_exam.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         /** 全新安装（v8 直接建库）时，Room 不会建非实体表，这里补建 FTS 虚表 */

@@ -35,11 +35,13 @@ fun appPainter(name: String): Painter {
         "cloud" -> R.drawable.ic_cloud
         "bell" -> R.drawable.ic_bell
         "info" -> R.drawable.ic_info
+        "island" -> R.drawable.ic_island
         "chevron" -> R.drawable.ic_chevron
         "back" -> R.drawable.ic_back
         "play" -> R.drawable.ic_play
         "exam" -> R.drawable.ic_exam
         "menu" -> R.drawable.ic_menu
+        "more" -> R.drawable.ic_more
         "sun" -> R.drawable.ic_sun
         "plus" -> R.drawable.ic_plus
         "trash" -> R.drawable.ic_trash
@@ -47,6 +49,7 @@ fun appPainter(name: String): Painter {
         "check" -> R.drawable.ic_check
         "close" -> R.drawable.ic_close
         "download" -> R.drawable.ic_download
+        "import" -> R.drawable.ic_import
         "upload" -> R.drawable.ic_upload
         "filter" -> R.drawable.ic_filter
         "flag" -> R.drawable.ic_flag
@@ -62,6 +65,11 @@ fun appPainter(name: String): Painter {
         "note" -> R.drawable.ic_note
         "tree" -> R.drawable.ic_tree
         "send" -> R.drawable.ic_send
+        "bulb" -> R.drawable.ic_bulb
+        "layers" -> R.drawable.ic_layers
+        "alert" -> R.drawable.ic_alert
+        // 2026-09-19 补登（收集箱统计卡「本周新增」）：lucide trending-up
+        "arrow" -> R.drawable.ic_trending_up
         else -> R.drawable.ic_info
     }
     return painterResource(res)

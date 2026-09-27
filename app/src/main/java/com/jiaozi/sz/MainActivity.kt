@@ -12,6 +12,7 @@ import com.jiaozi.sz.ui.AppRoot
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.CrashScreen
 import com.jiaozi.sz.ui.theme.JiaoziTheme
+import com.jiaozi.sz.xiaomi.StudyTimerService
 import java.io.File
 
 class MainActivity : ComponentActivity() {
@@ -24,7 +25,9 @@ class MainActivity : ComponentActivity() {
         if (crashFile.exists()) {
             val crashText = runCatching { crashFile.readText() }.getOrDefault("(崩溃日志读取失败)")
             runCatching { crashFile.delete() }
-            setContent { CrashScreen(crashText, onClose = { finish() }) }
+            // 🔴 2026-09-21 按 14 号稿：崩溃页不再内建「关闭并返回」按钮，
+            //    退出交由系统返回键（本 Activity 无导航栈可回退 ⇒ 返回键必然 finish）。
+            setContent { CrashScreen(crashText) }
             return
         }
         enableEdgeToEdge() // 状态栏/导航栏沉浸（HyperOS 风格）
@@ -33,13 +36,12 @@ class MainActivity : ComponentActivity() {
             val theme by appVm.theme.collectAsStateWithLifecycle()
             val dynamic by appVm.dynamicColor.collectAsStateWithLifecycle()
             val fontScale by appVm.fontScale.collectAsStateWithLifecycle()
-            val themePack by appVm.themePack.collectAsStateWithLifecycle()
             val dark = when (theme) {
                 "light" -> false
                 "dark" -> true
                 else -> androidx.compose.foundation.isSystemInDarkTheme()
             }
-            JiaoziTheme(darkTheme = dark, dynamicColor = dynamic, fontScale = fontScale, themePack = themePack) {
+            JiaoziTheme(darkTheme = dark, dynamicColor = dynamic, fontScale = fontScale) {
                 AppRoot()
             }
         }
@@ -49,6 +51,22 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIntent(intent)
+    }
+
+    /**
+     * 🔴 专注计时口径（2026-09-24 杰哥拍板「后台暂停 / 超时归零」）：
+     * onStop（真正退到后台，含锁屏/切走 App）暂停读秒；onStart 回来时判断离开时长——
+     * 未超 30 分钟则接着累计（后台停留不计入），超过则整段归零从零重计。
+     * 注：切 Tab 不会触发 onStop（Activity 仍在 onStart），故站内切页不受影响。
+     */
+    override fun onStart() {
+        super.onStart()
+        StudyTimerService.resumeFromBackground()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        StudyTimerService.pauseForBackground()
     }
 
     /**

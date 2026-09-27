@@ -76,12 +76,35 @@ object MetaKeys {
     const val PRACTICE_SUBJ = "practice_subj"
     const val PRACTICE_NUM = "practice_num"
     const val PRACTICE_INTERLEAVE = "practice_interleave"
+    // 以下三项为练习设置独立页（图 2-3）新增持久化键；旧版本无这些键，读取时按默认处理，完全兼容
+    const val PRACTICE_SHOW_ANSWER = "practice_show_answer"   // 答案即时显示（true/false）
+    const val PRACTICE_TIMED = "practice_timed"               // 限时模式（true/false，总时长 = num*60s）
+    const val PRACTICE_CHAPTERS = "practice_chapters"         // 多选章节（| 分隔），为空表示不限定章节
+    // 🔴 2026-09-25 补（G2）：单章「章节练习」通道专用键。
+    //    背景：「继续练习」点卡无响应的根因 —— startChapter() 走的是单章 `chapter` 通道
+    //    （PracticeEngine.build() 的 `mode == "章节练习"` 分支），但 start() 只持久化了 chapters 多选键，
+    //    chapter/disc 落盘即丢 ⇒ 重启后 resumeLast() 读回 mode=章节练习 而 chapter=null ⇒ 题池恒空
+    //    ⇒ start() 静默 return ⇒ 页面回落首页、无任何提示。此处补齐单章与科三学科两个键。
+    const val PRACTICE_CHAPTER = "practice_chapter"           // 单章（章节练习通道，可空）
+    const val PRACTICE_DISC = "practice_disc"                 // 科三学科（章节练习/错题本隔离用，可空）
+    const val PRACTICE_SHUFFLE_OPTIONS = "practice_shuffle_options" // 选项乱序（04 号 F3，true/false）
+    const val PRACTICE_INCLUDE_WRONG = "practice_include_wrong"     // 混入错题（04 号 F5，true/false）
+    const val PRACTICE_FAV = "practice_fav"                   // 收藏题目 id（, 分隔）；旧版无此键 → 空集，兼容
+    const val PRACTICE_TYPE = "practice_type"                 // 题型组合：choice / subjective / all（默认 choice）
     // 章节配置：显示名 + 模考权重（key = PracticeEngine.chapterKey(subject, disc, chapter)）
     const val CHAPTER_CONFIG = "chapter_config"
     // 备课用户模板库（JSON 数组：[{id,name,grade,type,fields}]）
     const val LESSON_TEMPLATES = "lesson_templates"
     // Pro 会员（诚信付费）激活状态："true" 表示已激活；不联网验单，靠用户自觉
     const val PRO_ACTIVATED = "pro_activated"
+    // 题库外置：首次启动下载引导是否已完成的判据（"true" 后不再强制弹下载页）
+    const val BANK_INIT_DONE = "bank_init_done"
+    // 🔴 2026-09-28 学段筛题：用户报考学段（"初中" / "高中"）。
+    //    取值与 BankStore.STAGE_OPTIONS 一致；键缺失 ⇒ null ⇒ 不启用学段过滤（兼容旧用户与未设置场景）。
+    const val EXAM_STAGE = "exam_stage"
+    // 🔴 2026-09-28 学段真拆包：本地题库**已下载版本对应的学段**。
+    //    与 EXAM_STAGE 不一致 ⇒ 本地题包是旧学段数据，须重下（管理页据此提示「题库需更新」）。
+    const val BANK_DOWNLOAD_STAGE = "bank_download_stage"
 }
 
 /**
@@ -91,51 +114,54 @@ object MetaKeys {
  * 启动时预建索引，避免 UI 层每次全量扫描造成卡顿。
  */
 class AppRepository(
-    val bank: Bank,
+    var bank: Bank,
     val syllabus: List<SyllabusSubject>,
     val autoSyll: List<AutoSyllSubj>,
     val knowledge: List<Knowledge>,
-    private val progressDao: ProgressDao,
-    private val dailyStatDao: DailyStatDao,
-    private val metaDao: MetaDao,
-    private val userQuestionDao: UserQuestionDao,
-    private val lessonDao: LessonDao,
-    private val inboxDao: InboxDao,
-    private val aiChatDao: AiChatDao,
-    private val curricDao: CurricDao,
-    private val bookDao: BookDao,
-    private val docIndexDao: DocIndexDao,
-    private val proofReviewDao: ProofReviewDao
+    internal val progressDao: ProgressDao,
+    internal val dailyStatDao: DailyStatDao,
+    internal val metaDao: MetaDao,
+    internal val userQuestionDao: UserQuestionDao,
+    internal val lessonDao: LessonDao,
+    internal val inboxDao: InboxDao,
+    internal val aiChatDao: AiChatDao,
+    internal val curricDao: CurricDao,
+    internal val bookDao: BookDao,
+    internal val docIndexDao: DocIndexDao,
+    internal val proofReviewDao: ProofReviewDao,
+    /** 同步信封基线的落盘存储（替代 meta 大行；见 [RawEnvStore] 注释） */
+    private val rawStore: RawEnvStore
 ) {
     /** 科三学科列表（去重，保持出现顺序） */
-    val discList: List<String> =
+    var discList: List<String> =
         bank.exam.filter { it.subject == "科三" }.mapNotNull { it.disc }.distinct()
 
     /** 预建索引：subject -> List<Question> */
-    private val bySubject: Map<String, List<Question>> = bank.exam.groupBy { it.subject }
+    private var bySubject: Map<String, List<Question>> = bank.exam.groupBy { it.subject }
 
     /** 预建索引：(subject, chapter) -> List<Question> */
-    private val byChapter: Map<Pair<String, String>, List<Question>> =
+    private var byChapter: Map<Pair<String, String>, List<Question>> =
         bank.exam.groupBy { it.subject to it.chapter }
 
-    /** 预建索引：(subject, chapter, section) -> List<Question> */
-    private val bySection: Map<Triple<String, String, String?>, List<Question>> =
-        bank.exam.groupBy { Triple(it.subject, it.chapter, it.section) }
-
     /** 预建索引：科三 (disc, chapter) -> List<Question> */
-    private val byDiscChapter: Map<Pair<String?, String>, List<Question>> =
+    private var byDiscChapter: Map<Pair<String?, String>, List<Question>> =
         bank.exam.filter { it.subject == "科三" }.groupBy { it.disc to it.chapter }
 
-    /** 预建索引：id -> Question */
-    private val byId: Map<String, Question> = bank.exam.associateBy { it.id }
+    /**
+     * 🔴 2026-09-28 题库外置：换库（首启下载 / 管理页增删科目包）后重建内存题库与全部索引。
+     * 旧版 bank 为启动期一次性构造的只读 val；外置后 bank 随下载/移除动态变化，
+     * 故改为 var 并在此集中重建，避免散落各处的 `repo.bank.exam` 读点遗漏刷新。
+     */
+    suspend fun reloadBank(newBank: Bank) {
+        bank = newBank
+        discList = newBank.exam.filter { it.subject == "科三" }.mapNotNull { it.disc }.distinct()
+        bySubject = newBank.exam.groupBy { it.subject }
+        byChapter = newBank.exam.groupBy { it.subject to it.chapter }
+        byDiscChapter = newBank.exam.filter { it.subject == "科三" }.groupBy { it.disc to it.chapter }
+    }
 
-    fun questionById(id: String): Question? = byId[id]
-    fun questionsBySubject(subject: String): List<Question> = bySubject[subject] ?: emptyList()
     fun questionsByChapter(subject: String, chapter: String): List<Question> =
         byChapter[subject to chapter] ?: emptyList()
-
-    fun questionsBySection(subject: String, chapter: String, section: String?): List<Question> =
-        bySection[Triple(subject, chapter, section)] ?: emptyList()
 
     /** 搜索（移动端规模上限固化：最多返回 200，防大数据量卡顿） */
     fun search(query: String, limit: Int = 200): List<Question> {
@@ -171,12 +197,17 @@ class AppRepository(
 
     suspend fun getProgress(qid: String): ProgressEntity? = progressDao.get(qid)
     suspend fun upsertProgress(p: ProgressEntity) = progressDao.upsert(p)
-    fun wrongBookFlow() = progressDao.wrongBook()
     fun dueFlow(now: Long) = progressDao.due(now)
 
     suspend fun getDailyStat(date: String): DailyStatEntity? = dailyStatDao.get(date)
     suspend fun upsertDailyStat(d: DailyStatEntity) = dailyStatDao.upsert(d)
     fun recentDailyStat(n: Int) = dailyStatDao.recent(n)
+
+    /**
+     * 最早一条每日统计的日期（yyyy-MM-dd）；无记录 → null。
+     * 用于「备考天数」这类**累计制**指标（全工程禁用 streak）。
+     */
+    suspend fun earliestDailyStatDate(): String? = dailyStatDao.earliestDate()
 
     suspend fun getMeta(key: String): String? = metaDao.get(key)?.value
     suspend fun setMeta(key: String, value: String) = metaDao.upsert(MetaEntity(key, value))
@@ -210,25 +241,23 @@ class AppRepository(
     }
 
     /** 序列化章节配置为 JSON 字符串 */
-    private fun serializeChapterConfig(map: Map<String, ChapterCfg>): String = buildJsonObject {
+    internal fun serializeChapterConfig(map: Map<String, ChapterCfg>): String = buildJsonObject {
         map.forEach { (k, v) ->
             put(k, buildJsonObject { put("name", v.name); put("weight", v.weight) })
         }
     }.toString()
 
     /** 当前科三学科（与网页端 subj3 对齐） */
-    private suspend fun subj3Disc(): String =
+    internal suspend fun subj3Disc(): String =
         getMeta(MetaKeys.SUBJECT3_DISC) ?: discList.firstOrNull() ?: "美术"
 
     // —— 用户 AI 题库 ——
     suspend fun allUserQuestions(): List<UserQuestionEntity> = userQuestionDao.all()
-    fun userQuestionsFlow() = userQuestionDao.allFlow()
     suspend fun upsertUserQuestion(q: UserQuestionEntity) = userQuestionDao.upsert(q)
     suspend fun deleteUserQuestion(id: String) = userQuestionDao.delete(id)
 
     // —— 备课（lesson）——
     fun allLessonsFlow(): Flow<List<LessonEntity>> = lessonDao.all()
-    suspend fun getLesson(id: String): LessonEntity? = lessonDao.get(id)
     suspend fun upsertLesson(l: LessonEntity) {
         lessonDao.upsert(l)
         syncDoc("lesson", l.id, l.title, lessonSearchText(l))
@@ -487,32 +516,66 @@ class AppRepository(
      * 校订真源（P4-1 闭环 R1）：「已校订」= exam[].flag != '待审'（网页端权威字段）∪ id∈proof_reviewed（App 本地完成标记）双源并集。
      * 内置题只读、不在 user_question 表，其 flag 随信封 exam 集合到达，存于 meta `proof_overrides` 覆盖层。
      */
-    private val PROOF_REVIEWED = "proof_reviewed"
+    internal val PROOF_REVIEWED = "proof_reviewed"
     /** 内置题 flag 覆盖层（id -> {flag, flagMsg}），使内置题的校订状态也能跨端一致 */
-    private val PROOF_OVERRIDES = "proof_overrides"
+    internal val PROOF_OVERRIDES = "proof_overrides"
 
     /** 解析内置题 flag 覆盖层 */
-    private suspend fun proofOverrides(): MutableMap<String, JsonElement> {
+    internal suspend fun proofOverrides(): MutableMap<String, JsonElement> {
         val raw = getMeta(PROOF_OVERRIDES) ?: return mutableMapOf()
         return try { Json.parseToJsonElement(raw).jsonObject.toMutableMap() }
         catch (_: Exception) { mutableMapOf() }
     }
 
-    /** 待校订池：flag == '待审' 的题（内置 + 用户），覆盖层优先于题自身 flag */
+    /** 待校订池：flag ∈ ('待审','需修正') 的题（内置 + 用户），覆盖层优先于题自身 flag */
     suspend fun pendingProofQuestions(): List<Question> {
         val ov = proofOverrides()
         val userQs = userQuestionDao.all().map { it.toQuestion() }
         val all = bank.exam + userQs
-        return all.filter { (ov[it.id]?.jsonObject?.get("flag")?.jsonPrimitive?.contentOrNull ?: it.flag) == "待审" }
+        return all.filter {
+            val f = ov[it.id]?.jsonObject?.get("flag")?.jsonPrimitive?.contentOrNull ?: it.flag
+            f == "待审" || f == "需修正"
+        }
     }
+
+    /**
+     * 设置待审题的校订状态（2026-09-19 新增，承载高保真「采纳 / 修正 / 丢弃」三键）。
+     *
+     * 🔴 实现口径：**复用既有 `proof_overrides` 覆盖层，不新增表、不改 DAO、不动 Room version**。
+     *  - `已校订`（采纳）→ 走 [markProofReviewed]（双写 proof_review 表 + 覆盖层），不放这里；
+     *  - `需修正`（修正）→ 覆盖层 flag = '需修正'，**仍在待审池内**（[pendingProofQuestions] 已放行该值），
+     *    并写入 `flagMsg` 供 UI 显示提示；
+     *  - `已丢弃`（丢弃）→ 覆盖层 flag = '已丢弃'，自动移出待审池（池过滤只认 '待审' / '需修正'）。
+     *
+     * 同步口径：覆盖层经 `PROOF_OVERRIDES` meta 上行（与 markProofReviewed 同一条通路），
+     * 故网页端导入导出天然互通，无需改信封结构。
+     *
+     * @param msg 可选校订提示（仅 flag='需修正' 时使用）
+     */
+    suspend fun setProofFlag(id: String, flag: String, msg: String? = null) {
+        val ov = proofOverrides()
+        val cur = (ov[id]?.jsonObject?.toMutableMap() ?: mutableMapOf()).apply {
+            put("flag", JsonPrimitive(flag))
+            if (msg != null) put("flagMsg", JsonPrimitive(msg))
+        }
+        ov[id] = JsonObject(cur)
+        setMeta(PROOF_OVERRIDES, JsonObject(ov).toString())
+        val uq = userQuestionDao.all().firstOrNull { it.id == id }
+        if (uq != null) userQuestionDao.upsert(uq.copy(flag = flag, flagMsg = msg ?: uq.flagMsg))
+    }
+
+    /** 校订页覆盖层标记（供 UI 显示「需修正」等态；键 = qid，值 = flag） */
+    suspend fun proofFlagMap(): Map<String, String> =
+        proofOverrides().mapNotNull { (k, v) ->
+            v.jsonObject["flag"]?.jsonPrimitive?.contentOrNull?.let { k to it }
+        }.toMap()
 
     /** 已在校订页标记「通过」的题 id（P2-B：独立 proof_review 表，不再用 meta 逗号串） */
     private suspend fun proofReviewedSet(): MutableSet<String> =
         proofReviewDao.allQids().toMutableSet()
-    suspend fun isProofReviewed(id: String): Boolean = proofReviewedSet().contains(id)
     suspend fun proofReviewedIds(): Set<String> = proofReviewedSet()
     /** 信封兼容：把本表序列化为 meta `proof_reviewed` 逗号串（导出/导入传输用） */
-    private suspend fun proofReviewedCsv(): String = proofReviewDao.allQids().joinToString(",")
+    internal suspend fun proofReviewedCsv(): String = proofReviewDao.allQids().joinToString(",")
 
     /** 标记已校订（双写，App→Web 对称）：① 设 flag='已校订'（覆盖层/用户实体，经 exam 集合上行）；② 写入 proof_review 表（本地真源）+ 派生 meta 逗号串 */
     suspend fun markProofReviewed(id: String) {
@@ -546,11 +609,6 @@ class AppRepository(
                 ids.forEach { proofReviewDao.upsert(ProofReviewEntity(qid = it, reviewedAt = now, _mt = now)) }
             }
         }
-    }
-
-    suspend fun pendingProofUnreviewed(): List<Question> {
-        val done = proofReviewedSet()
-        return pendingProofQuestions().filter { it.id !in done }
     }
 
     /** 错题本：wrongBook 标记的进度对应的题目（科三按学科隔离） */
@@ -596,382 +654,39 @@ class AppRepository(
         val merged = MergeEngine.merge(local, remote)
         // 旧 `preserveLocalMetaKeys` 已移除——校订标记改为独立表，
         // 由 unionProofReviewFromMeta 在合并后做双端并集，比「本地强制覆盖远端」更正确。
-        setMeta(MetaKeys.SYNC_ENV_RAW, MergeEngine.serialize(merged))
+        // 基线落盘（原先写 meta 单行，信封涨大后会超 CursorWindow 上限导致后续读取抛异常）
+        rawStore.write(MergeEngine.serialize(merged))
         val report = applyEnvelopeToLocal(merged)
         // 校订结构化：信封 meta `proof_reviewed` 与本地 proof_review 表并集，双端「已校订」标记均保全
         unionProofReviewFromMeta()
         return report
     }
 
-    /** 读取上次原样信封（缺失则用空信封） */
-    private suspend fun loadRawEnv(): JsonObject {
-        val raw = getMeta(MetaKeys.SYNC_ENV_RAW)
-        return if (raw != null) {
-            try { MergeEngine.parse(raw) } catch (_: Exception) { MergeEngine.emptyEnvelope(subj3Disc()) }
-        } else MergeEngine.emptyEnvelope(subj3Disc())
-    }
-
     /**
-     * 从本地 DB 构建信封：在 raw 基础上叠加 App 受管集合（exam 用户题 / qstat 进度 / corrections 错题本 / meta / prefs），
-     * 用 MergeEngine 的集合合并保证「只叠加、不替换」——raw 中网页端独有的 exam/knowledge/lesson 等全部保留。
+     * 读取上次原样信封（缺失则用空信封）。
+     *
+     * 存储演进：早期存在 meta 表 `sync_env_raw` **单行**里；信封随题量/进度增长到约 1.26 MB 后
+     * 触发 `SQLiteBlobTooBigException`（Row too big to fit into CursorWindow），使 exportEnvelope
+     * 全线失败。现改为**文件优先**：
+     * ① 文件（新路径）有 → 直接用；
+     * ② 否则回退读 meta（老路径，兼容未迁移设备），**读成功即迁入文件**并删除 meta 行；
+     * ③ 老行**读不出来**（正是该 bug 本身）也删掉它，避免持续占空间、反复抛错。
+     * 信封格式与内容均未改动，故**跨端互通不受影响**。
      */
-    private suspend fun buildEnvelopeFromLocal(raw: JsonObject): JsonObject {
-        val now = System.currentTimeMillis()
-        val built = raw.toMutableMap()
-
-        // exam：仅叠加 App 自有用户题（内置题由代码持有，不导出，避免误删网页端内置题）
-        // 离线样例（flagMsg=='离线样例'）非真实用户题，导出上行前过滤，避免污染网页端题库
-        val uqs = allUserQuestions().filter { it.flagMsg != "离线样例" }.map { toExamJson(it) }
-        val rawExam = raw["exam"] as? JsonArray ?: JsonArray(emptyList())
-        built["exam"] = MergeEngine.mergeArrayCollection("exam", rawExam, JsonArray(uqs))
-
-        // qstat：进度统计
-        val prog = progressDao.all().first()
-        val qstatItems = prog.map { p ->
-            buildJsonObject {
-                put("id", p.qid); put("right", p.right); put("wrong", p.wrong); put("due", p.due)
-                put("_mt", p._mt); put("_del", p._del)
-                put("subject", p.subject); put("chapter", p.chapter)
-                if (!p.lastResult.isNullOrBlank()) put("lastResult", p.lastResult)
-                if (p.cause != null) put("cause", JsonArray(p.cause.split(",").map { it.trim() }.filter { it.isNotBlank() }.map { JsonPrimitive(it) }))
-                if (p.draft.isNotBlank()) put("draft", p.draft)
-            }
+    private suspend fun loadRawEnv(): JsonObject {
+        rawStore.read()?.let { s ->
+            return runCatching { MergeEngine.parse(s) }
+                .getOrElse { MergeEngine.emptyEnvelope(subj3Disc()) }
         }
-        val rawQstat = raw["qstat"] as? JsonObject ?: JsonObject(emptyMap())
-        val qstatMap = buildJsonObject { qstatItems.forEach { put(it["id"]!!.jsonPrimitive.content, it) } }
-        built["qstat"] = MergeEngine.mergeMapCollection(rawQstat, qstatMap)
-
-        // corrections：错题本（仅 wrongBook 的题目）；以 qid 为 key（条目内不含 id 字段）
-        val corrMap = prog.filter { it.wrongBook }.associate { p ->
-            p.qid to buildJsonObject {
-                put("_mt", p._mt); put("wrongBook", true)
-                if (p.cause != null) put("cause", JsonArray(p.cause.split(",").map { it.trim() }.filter { it.isNotBlank() }.map { JsonPrimitive(it) }))
-                if (!p.lastResult.isNullOrBlank()) put("lastResult", p.lastResult)
-            }
+        // 兼容旧数据：meta 里可能还留着基线（也可能大到读不出来）
+        val legacy = runCatching { getMeta(MetaKeys.SYNC_ENV_RAW) }.getOrNull()
+        if (!legacy.isNullOrBlank()) {
+            rawStore.write(legacy)
+            return runCatching { MergeEngine.parse(legacy) }
+                .getOrElse { MergeEngine.emptyEnvelope(subj3Disc()) }
         }
-        val rawCorr = raw["corrections"] as? JsonObject ?: JsonObject(emptyMap())
-        val corrJson = buildJsonObject { corrMap.forEach { (k, v) -> put(k, v) } }
-        built["corrections"] = MergeEngine.mergeMapCollection(rawCorr, corrJson)
-
-        // meta：与网页端逐字段对齐（theme/pack/font/targetDay/_mt + 本地 proof_reviewed）。
-        // 从 raw 起步，仅覆盖受管字段，确保网页端独有 meta 键（如未来扩展）无损保留。
-        val rawMeta = raw["meta"] as? JsonObject ?: JsonObject(emptyMap())
-        val meta = rawMeta.toMutableMap()
-        fun metaPut(k: String, v: String?) { if (v != null) meta[k] = JsonPrimitive(v) }
-        metaPut("theme", getMeta(MetaKeys.THEME))
-        metaPut("pack", getMeta(MetaKeys.THEME_PACK))   // 美术主题包（墨绿/小米蓝/青/墨/锦）
-        metaPut("font", getMeta(MetaKeys.FONT_SCALE))   // 字号 sm/md/lg/xl
-        metaPut("targetDay", getMeta(MetaKeys.TARGET_DAY))
-        metaPut("proof_reviewed", getMeta(PROOF_REVIEWED))
-        // 章节配置（改名/权重）：非空才写入，避免清空信封体积；导入端仅在携带时覆盖本地
-        val cc = serializeChapterConfig(getChapterConfig())
-        if (cc != "{}") metaPut(MetaKeys.CHAPTER_CONFIG, cc)
-        // 内容级 _mt：仅当受管字段相对 raw 变化时才刷新为 now，否则沿用 raw._mt。
-        // 否则每次导出都打 now 会让本端 meta 永远「较新」，导致网页端改了 meta 时手机端无法采纳。
-        val metaManaged = listOf("theme", "pack", "font", "targetDay", "proof_reviewed")
-        val metaChanged = metaManaged.any { meta[it] != rawMeta[it] }
-        val metaMt = if (metaChanged) now else (rawMeta["_mt"] as? JsonPrimitive)?.longOrNull ?: now
-        meta["_mt"] = JsonPrimitive(metaMt)
-        built["meta"] = JsonObject(meta)
-
-        // prefs：与网页端对齐（practiceMode/lastSubject/_mt）。
-        // 从 raw 起步保留网页端独有键（如 proofTab），仅覆盖本端管理的两个字段；
-        // _mt 内容级（仅当本端字段变化才刷新），避免本端永远「较新」而覆盖掉网页端的 proofTab。
-        val rawPrefs = raw["prefs"] as? JsonObject ?: JsonObject(emptyMap())
-        val prefs = rawPrefs.toMutableMap()
-        getMeta(MetaKeys.PRACTICE_MODE)?.let { prefs["practiceMode"] = JsonPrimitive(it) }
-        getMeta(MetaKeys.PRACTICE_SUBJ)?.let { prefs["lastSubject"] = JsonPrimitive(it) }
-        val prefsChanged = prefs["practiceMode"] != rawPrefs["practiceMode"] || prefs["lastSubject"] != rawPrefs["lastSubject"]
-        val prefsMt = if (prefsChanged) now else (rawPrefs["_mt"] as? JsonPrimitive)?.longOrNull ?: now
-        prefs["_mt"] = JsonPrimitive(prefsMt)
-        built["prefs"] = JsonObject(prefs)
-
-        // lesson：备课教案（用户自建，全部导出，按 id+_mt 合并保活网页端独有）
-        val lessons = lessonDao.all().first().map { l -> lessonToEnvelope(l) }
-        val rawLesson = raw["lesson"] as? JsonArray ?: JsonArray(emptyList())
-        built["lesson"] = MergeEngine.mergeArrayCollection("lesson", rawLesson, JsonArray(lessons))
-
-        // curric / books：备课资源库（与网页端 S.curric / S.books 对齐；泛型合并对网页端无损）
-        val curric = curricDao.all().first().map { e ->
-            buildJsonObject { put("id", e.id); put("grade", e.grade); put("subject", e.subject); put("topic", e.topic); put("text", e.text); put("_mt", e._mt) }
-        }
-        val books = bookDao.all().first().map { e ->
-            buildJsonObject { put("id", e.id); put("grade", e.grade); put("book", e.book); put("unit", e.unit); put("lesson", e.lesson); put("text", e.text); put("_mt", e._mt) }
-        }
-        built["curric"] = MergeEngine.mergeArrayCollection("curric", raw["curric"] as? JsonArray ?: JsonArray(emptyList()), JsonArray(curric))
-        built["books"] = MergeEngine.mergeArrayCollection("books", raw["books"] as? JsonArray ?: JsonArray(emptyList()), JsonArray(books))
-
-        // —— 收集箱(inbox) / AI 对话历史(aiHistory)：按同步契约「留本地」，不写入同步包 ——
-        // 与网页端 SYNC_COLS=['exam','knowledge','lesson','corrections','qstat'] 严格对齐，
-        // 避免手机端向共享空间写入网页端不识别的字段造成数据漂移。本地 DB 仍为唯一真源；
-        // 若远端信封（如未来网页端扩展）携带这些集合，导入时仍会按 id 幂等写入本地，不丢数据。
-        built.remove("inbox")
-        built.remove("aiHistory")
-
-        built["v"] = JsonPrimitive(MergeEngine.ENVELOPE_VERSION)
-        built["createdAt"] = JsonPrimitive(now)
-        built["subj3"] = JsonPrimitive(subj3Disc())   // 显式携带学科（科三方向），与网页端信封一致
-        // 校订隐藏集以本地 proof_review 表为准刷新信封 meta，避免 SYNC_ENV_RAW 冻结导致跨端陈旧
-        val metaMut = (built["meta"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
-        metaMut["proof_reviewed"] = JsonPrimitive(proofReviewedCsv())
-        built["meta"] = JsonObject(metaMut)
-        return JsonObject(built)
-    }
-
-    /** 把合并后信封的受管集合映射回本地 DB；返回详细 [MergeReport]（各集合增量 + 冲突 + 最大 _mt） */
-    private suspend fun applyEnvelopeToLocal(env: JsonObject): MergeReport {
-        val r = MergeReportBuilder()
-        val builtinIds = bank.exam.map { it.id }.toSet()
-        val existingUq = userQuestionDao.all().associateBy { it.id }
-        val existingLesson = lessonDao.all().first().associateBy { it.id }
-        val existingCurric = curricDao.all().first().associateBy { it.id }
-        val existingBook = bookDao.all().first().associateBy { it.id }
-        val existingInbox = inboxDao.all().first().associateBy { it.id }
-        val existingAi = aiChatDao.all().first().associateBy { it.id }
-
-        // qstat → 进度统计
-        // 兼容两种格式：手机端标准 {right, wrong, due} 和网页端 {n, c}（n=做题次数, c=正确数）
-        val qstat = env["qstat"] as? JsonObject
-        if (qstat != null) {
-            for ((qid, v) in qstat) {
-                if (v !is JsonObject) continue
-                if ((v["_del"] as? JsonPrimitive)?.booleanOrNull == true) continue
-                val _mt = MergeEngine.mtOf(v)
-                val existing = getProgress(qid)
-                val right = (v["right"] as? JsonPrimitive)?.intOrNull
-                    ?: (v["c"] as? JsonPrimitive)?.intOrNull ?: 0
-                val wrong = (v["wrong"] as? JsonPrimitive)?.intOrNull
-                    ?: ((v["n"] as? JsonPrimitive)?.intOrNull?.let { n -> (v["c"] as? JsonPrimitive)?.intOrNull?.let { c -> n - c } })
-                    ?: 0
-                val ent = (existing ?: ProgressEntity(qid = qid)).copy(
-                    right = right,
-                    wrong = wrong,
-                    due = (v["due"] as? JsonPrimitive)?.longOrNull ?: 0,
-                    _mt = maxOf(existing?._mt ?: 0, _mt)
-                )
-                upsertProgress(ent); r.qstat++; r.max(_mt)
-            }
-        }
-
-        // corrections → 错题本（wrongBook + 错因并集）
-        val corr = env["corrections"] as? JsonObject
-        if (corr != null) {
-            for ((qid, v) in corr) {
-                if (v !is JsonObject) continue
-                if ((v["_del"] as? JsonPrimitive)?.booleanOrNull == true) continue
-                val _mt = MergeEngine.mtOf(v)
-                val existing = getProgress(qid) ?: ProgressEntity(qid = qid)
-                val remoteCause = (v["cause"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList()
-                val localCause = existing.cause?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-                val cause = (localCause + remoteCause).toSet().joinToString(",")
-                upsertProgress(existing.copy(wrongBook = true, cause = cause.ifBlank { null }, _mt = maxOf(existing._mt, _mt)))
-                r.corrections++; r.max(_mt)
-            }
-        }
-
-        // exam → 用户题入库（含 flag/flagMsg）；内置题只读但 flag 随信封到达，写入覆盖层使其多端一致
-        val exam = env["exam"] as? JsonArray
-        if (exam != null) {
-            val ov = proofOverrides()
-            for (e in exam) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val flag = (e["flag"] as? JsonPrimitive)?.contentOrNull
-                if (id in builtinIds) {
-                    // 内置题：仅同步校订标记到覆盖层（内容由代码持有，不覆盖）
-                    val fm = (e["flagMsg"] as? JsonPrimitive)?.contentOrNull
-                    if (flag != null || fm != null) {
-                        val cur = (ov[id]?.jsonObject?.toMutableMap() ?: mutableMapOf())
-                        if (flag != null) cur["flag"] = JsonPrimitive(flag)
-                        if (fm != null) cur["flagMsg"] = JsonPrimitive(fm)
-                        ov[id] = JsonObject(cur)
-                    }
-                    continue
-                }
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingUq.containsKey(id)) { deleteUserQuestion(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingUq.containsKey(id)
-                val uqe = UserQuestionEntity(
-                    id = id,
-                    subject = (e["subject"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    chapter = (e["chapter"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    section = (e["section"] as? JsonPrimitive)?.contentOrNull,
-                    q = (e["q"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    opt = (e["opt"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    answer = (e["answer"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    analysis = (e["analysis"] as? JsonPrimitive)?.contentOrNull,
-                    disc = (e["disc"] as? JsonPrimitive)?.contentOrNull,
-                    flag = flag,
-                    flagMsg = (e["flagMsg"] as? JsonPrimitive)?.contentOrNull,
-                    _mt = _mt, _del = false
-                )
-                upsertUserQuestion(uqe)
-                // 网页端错题标记：exam[].wrongBook=true 或含 cause → 同步到手机端错题本(ProgressEntity)
-                val wb = (e["wrongBook"] as? JsonPrimitive)?.booleanOrNull == true
-                val causeArr = (e["cause"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList()
-                if (wb || causeArr.isNotEmpty()) {
-                    val pg = getProgress(id) ?: ProgressEntity(qid = id)
-                    val localCause = pg.cause?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
-                    val cause = (localCause + causeArr).toSet().joinToString(",").ifBlank { null }
-                    upsertProgress(pg.copy(wrongBook = true, cause = cause, _mt = maxOf(pg._mt, _mt)))
-                    r.qstat++
-                }
-                if (existed) r.examUpdated++ else r.examAdded++
-                r.max(_mt)
-            }
-            setMeta(PROOF_OVERRIDES, JsonObject(ov).toString())
-        }
-
-        // lesson → 备课（全部导入，非内置用户数据）
-        val lessonArr = env["lesson"] as? JsonArray
-        if (lessonArr != null) {
-            for (e in lessonArr) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingLesson.containsKey(id)) { deleteLesson(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingLesson.containsKey(id)
-                upsertLesson(envelopeToLesson(e))
-                if (existed) r.lessonUpdated++ else r.lessonAdded++
-                r.max(_mt)
-            }
-        }
-
-        // curric → 课标库（备课资源，与网页端 S.curric 对齐；泛型合并无损）
-        val curricArr = env["curric"] as? JsonArray
-        if (curricArr != null) {
-            for (e in curricArr) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingCurric.containsKey(id)) { deleteCurric(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingCurric.containsKey(id)
-                upsertCurric(CurricEntity(
-                    id = id,
-                    grade = (e["grade"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    subject = (e["subject"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    topic = (e["topic"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    text = (e["text"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    _mt = _mt
-                ))
-                if (existed) r.curricUpdated++ else r.curricAdded++
-                r.max(_mt)
-            }
-        }
-
-        // books → 教材库（备课资源，与网页端 S.books 对齐；泛型合并无损）
-        val booksArr = env["books"] as? JsonArray
-        if (booksArr != null) {
-            for (e in booksArr) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingBook.containsKey(id)) { deleteBook(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingBook.containsKey(id)
-                upsertBook(BookEntity(
-                    id = id,
-                    grade = (e["grade"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    book = (e["book"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    unit = (e["unit"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    lesson = (e["lesson"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    text = (e["text"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    _mt = _mt
-                ))
-                if (existed) r.booksUpdated++ else r.booksAdded++
-                r.max(_mt)
-            }
-        }
-
-        // inbox → 收集箱
-        val inboxArr = env["inbox"] as? JsonArray
-        if (inboxArr != null) {
-            for (e in inboxArr) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingInbox.containsKey(id)) { deleteInbox(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingInbox.containsKey(id)
-                upsertInbox(InboxEntity(
-                    id = id,
-                    type = (e["type"] as? JsonPrimitive)?.contentOrNull ?: "text",
-                    content = (e["content"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    note = (e["note"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    createdAt = (e["createdAt"] as? JsonPrimitive)?.longOrNull ?: 0,
-                    _mt = _mt
-                ))
-                if (existed) r.inboxUpdated++ else r.inboxAdded++
-                r.max(_mt)
-            }
-        }
-
-        // aiHistory → AI 对话历史（按 id 幂等写入）
-        val aiArr = env["aiHistory"] as? JsonArray
-        if (aiArr != null) {
-            for (e in aiArr) {
-                if (e !is JsonObject) continue
-                val id = (e["id"] as? JsonPrimitive)?.contentOrNull ?: continue
-                val _mt = MergeEngine.mtOf(e)
-                if ((e["_del"] as? JsonPrimitive)?.booleanOrNull == true) {
-                    if (existingAi.containsKey(id)) { aiChatDao.delete(id); r.removed++; r.max(_mt) }
-                    continue
-                }
-                val existed = existingAi.containsKey(id)
-                addAiChat(AiChatEntity(
-                    id = id,
-                    role = (e["role"] as? JsonPrimitive)?.contentOrNull ?: "assistant",
-                    content = (e["content"] as? JsonPrimitive)?.contentOrNull ?: "",
-                    ts = (e["ts"] as? JsonPrimitive)?.longOrNull ?: 0,
-                    _mt = _mt
-                ))
-                if (existed) r.aiHistoryUpdated++ else r.aiHistoryAdded++
-                r.max(_mt)
-            }
-        }
-
-        // meta → theme / pack / font / targetDay / proof_reviewed（与网页端字段对齐）
-        val m = env["meta"] as? JsonObject
-        if (m != null) {
-            (m["theme"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.THEME, it) }
-            (m["pack"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.THEME_PACK, it) }
-            (m["font"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.FONT_SCALE, it) }
-            (m["targetDay"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.TARGET_DAY, it) }
-            (m["proof_reviewed"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(PROOF_REVIEWED, it) }
-            // 章节配置：信封携带时整体覆盖本地（配置类语义，与备份/同步一致）
-            (m["chapter_config"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.CHAPTER_CONFIG, it) }
-        }
-        // prefs → practiceMode / lastSubject
-        val p = env["prefs"] as? JsonObject
-        if (p != null) {
-            (p["practiceMode"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.PRACTICE_MODE, it) }
-            (p["lastSubject"] as? JsonPrimitive)?.contentOrNull?.let { setMeta(MetaKeys.PRACTICE_SUBJ, it) }
-        }
-        return r.build()
-    }
-
-    private fun toExamJson(u: UserQuestionEntity): JsonObject = buildJsonObject {
-        put("id", u.id); put("subject", u.subject); put("chapter", u.chapter)
-        if (u.section != null) put("section", u.section)
-        put("q", u.q); put("opt", u.opt); put("answer", u.answer)
-        if (u.analysis != null) put("analysis", u.analysis)
-        if (u.disc != null) put("disc", u.disc)
-        if (u.flag != null) put("flag", u.flag)
-        if (u.flagMsg != null) put("flagMsg", u.flagMsg)
-        put("_mt", u._mt); put("_del", u._del)
+        runCatching { metaDao.delete(MetaKeys.SYNC_ENV_RAW) }  // 老行已无用，删掉释放空间
+        return MergeEngine.emptyEnvelope(subj3Disc())
     }
 }
 
@@ -1010,7 +725,7 @@ data class MergeReport(
 }
 
 /** [MergeReport] 的内部可变累加器 */
-private class MergeReportBuilder {
+internal class MergeReportBuilder {
     var examAdded = 0; var examUpdated = 0
     var lessonAdded = 0; var lessonUpdated = 0
     var curricAdded = 0; var curricUpdated = 0

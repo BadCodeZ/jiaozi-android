@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -100,7 +99,9 @@ fun PrefRow(
             if (trailing != null) trailing()
         }
         if (showDivider) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            // 🔴 2026-09-26 统一口径：原 `@0.5f` 与 SettingRow 实色 1dp 并存
+            //   （11 号规范 `divider_exception_20260925.open_items` 第 2 条「待统一」）⇒ 全改为实色。
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -188,7 +189,9 @@ fun PrefChipGroup(
             }
         }
         if (showDivider) {
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            // 🔴 2026-09-26 统一口径：原 `@0.5f` 与 SettingRow 实色 1dp 并存
+            //   （11 号规范 `divider_exception_20260925.open_items` 第 2 条「待统一」）⇒ 全改为实色。
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
@@ -277,7 +280,9 @@ fun InlineExpandSelect(
                 }
             }
             if (showDivider) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                // 🔴 2026-09-26 统一口径：原 `@0.5f` 与 SettingRow 实色 1dp 并存
+            //   （11 号规范 `divider_exception_20260925.open_items` 第 2 条「待统一」）⇒ 全改为实色。
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
     }

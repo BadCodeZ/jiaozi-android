@@ -1,19 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lucide 图标 "bell"（lucide-static v1.47.0，ISC 许可）
+  由 _ic/convert.py 自动转换；勿手改，重新生成请重跑该脚本。
+  线性风格：fill=none / stroke-width=2 / round cap+join，颜色交由 Icon(tint=…) 运行时着色。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"
-        android:fillColor="@android:color/transparent"
+    <path
+        android:pathData="M10.268 21a2 2 0 0 0 3.464 0"
+        android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
-    <path android:pathData="M10 20a2 2 0 0 0 4 0"
-        android:fillColor="@android:color/transparent"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"
+        android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
+        android:strokeLineJoin="round" />
 </vector>

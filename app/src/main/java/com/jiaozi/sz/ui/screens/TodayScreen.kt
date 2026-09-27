@@ -1,86 +1,104 @@
 package com.jiaozi.sz.ui.screens
-import com.jiaozi.sz.ui.components.appPainter
-import androidx.compose.ui.graphics.painter.Painter
 
-import android.content.Intent
+import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.AppColors
+import com.jiaozi.sz.ui.components.CollapsingTopBlocks
+import com.jiaozi.sz.ui.components.GroupTitle
+import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.MiniBadge
+import com.jiaozi.sz.ui.components.NavRowCard
+import com.jiaozi.sz.ui.components.QuickActionCard
+import com.jiaozi.sz.ui.components.SectionTitleDot
+import com.jiaozi.sz.ui.components.ShimmerBox
+import com.jiaozi.sz.ui.components.StatCard
+import com.jiaozi.sz.ui.components.hubDragToScroll
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.foundation.Canvas
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.jiaozi.sz.domain.PracticeConfig
-import java.time.format.DateTimeFormatter
 import com.jiaozi.sz.domain.WeaknessScorer
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
-import com.jiaozi.sz.ui.Motivation
 import com.jiaozi.sz.ui.LocalPracticeVm
 import com.jiaozi.sz.ui.Motion
-import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.ui.PracticeViewModel
 import com.jiaozi.sz.ui.Screen
-import com.jiaozi.sz.ui.theme.AppGradients
+import com.jiaozi.sz.ui.reduceMotionNow
+import com.jiaozi.sz.util.startOfDayMillis
+import com.jiaozi.sz.util.toIsoDate
+import com.jiaozi.sz.util.todayStartMillis
 
+/**
+ * 今日目标题数（03 号 E1 副标题 / E2 进度卡分母）。
+ * 🔴 单一来源：今日页与练习页共用（练习页 Hero 副标题 + 「今日已练 x/50 题」分母），
+ *    改这里两页同时生效，禁止在别处再写一份字面量。
+ */
+internal const val TODAY_GOAL = 50
+
+/**
+ * 一级 Tab · 今日（03 号 `today.main`，两段式布局）。
+ *
+ * 结构（🔴 不许回退）：
+ * 非滚动外框 Column → `CollapsingTopBlocks[Hero 倒计时]`（2 列统计卡已下沉进滚动区首项）
+ * → **唯一滚动容器** `LazyColumn(Modifier.fillMaxWidth().weight(1f))`。
+ *
+ * ⭐ 固定带挂 `hubDragToScroll(listState)` 做**手势直通**（固定带自身是非滚动
+ * Column，无滚动节点 ⇒ 不挂则手指落上去既不滚列表也无任何反应）。
+ * 🔴 折叠机制 2026-09-21 已整体停用、2026-09-25 死码清理 ⇒ 外框**不再挂**任何折叠监听。
+ *
+ * 缺 `weight(1f)` 会导致「整页滑不动 + 悬浮导航栏被空底衬成一块白色遮罩」（05 号 critical_history）。
+ *
+ * 合规说明：本页**不出现**任何「连续打卡 / streak」概念（06 / 01 号全工程禁令）。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(nav: NavHostController) {
@@ -89,288 +107,273 @@ fun TodayScreen(nav: NavHostController) {
     val ctx = LocalContext.current
     val rm = reduceMotionNow(ctx)
     val progress by appVm.progressMap.collectAsStateWithLifecycle()
-    val streak by appVm.checkinStreak.collectAsStateWithLifecycle()
     val disc by appVm.subject3Disc.collectAsStateWithLifecycle()
     val targetDay by appVm.targetDay.collectAsStateWithLifecycle()
-    val themePack by appVm.themePack.collectAsStateWithLifecycle()
     val onboarded by appVm.onboarded.collectAsStateWithLifecycle()
     val metaLoaded by appVm.metaLoaded.collectAsStateWithLifecycle()
     val repo = appVm.repo
 
-    // 首开轻引导：meta 加载完成后且未引导过才弹，避免默认值 false 闪烁；去设置/稍后都会置已引导
     var showOnboard by remember { mutableStateOf(false) }
     var showMock by remember { mutableStateOf(false) }
+    var showDayPicker by remember { mutableStateOf(false) }
     LaunchedEffect(onboarded, metaLoaded) {
         if (metaLoaded && !onboarded) showOnboard = true
     }
 
-    val loadError by appVm.loadError.collectAsStateWithLifecycle()
-    var showLoadError by remember { mutableStateOf(true) }
-
     val now = System.currentTimeMillis()
     val due = remember(progress) { progress.values.count { it.due > 0 && it.due <= now } }
-    // 顶部四统计：题库总量 / 已练习 / 总正确率 / 连续打卡
-    val totalQuestions = remember(repo) { repo.bank.exam.size }
     val practicedCount = remember(progress) { progress.values.count { it.right + it.wrong > 0 } }
-    val overallAcc = remember(progress) {
-        val r = progress.values.sumOf { it.right }; val w = progress.values.sumOf { it.wrong }
-        if (r + w == 0) -1f else r.toFloat() / (r + w)
-    }
-    // 目标日倒计时（天），未设置则不显示
     val daysLeft = remember(targetDay) {
         if (targetDay.isBlank()) null else runCatching {
-            val t = java.time.LocalDate.parse(targetDay).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val t = java.time.LocalDate.parse(targetDay).startOfDayMillis()
             ((t - now) / 86400000).toInt()
         }.getOrNull()
     }
 
-    val weakTop3 = rememberKey(progress, disc) {
-        val byChapter = repo.bank.exam
+    // ── 任务种子：按「科目 × 章节」聚合掌握度与错题量（纯数据，颜色在正文处再取，避免 remember 冻结主题色） ──
+    val seeds = rememberKey(progress, disc) {
+        repo.bank.exam
             .filter { it.subject != "科三" || it.disc == disc }
             .groupBy { it.subject to it.chapter }
-        byChapter.mapNotNull { (k, list) ->
-            val score = list.map { WeaknessScorer.score(progress[it.id]) }.average()
-            if (score.isNaN()) null else Triple(k.first, k.second, score)
-        }.sortedByDescending { it.third }.take(3)
+            .map { (k, list) ->
+                val practiced = list.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
+                val wrong = list.sumOf { q -> progress[q.id]?.wrong ?: 0 }
+                val avg = list.map { WeaknessScorer.score(progress[it.id]) }.average()
+                TaskSeed(k.first, k.second, list.size, practiced, wrong, if (avg.isNaN()) 1f else avg.toFloat())
+            }
     }
+    val weakSeeds = seeds.filter { it.score < 1f }.sortedBy { it.score }   // 掌握度升序 ⇒ 最弱在前
+    val wrongSeeds = seeds.filter { it.wrong > 0 }.sortedByDescending { it.wrong }
+
+    val tasks = ArrayList<TodayTask>(3)
+    weakSeeds.getOrNull(0)?.let {
+        tasks += it.toTask("优先练习", "edit", AppColors.blue, AppColors.blueBg, planCount(it))
+    }
+    weakSeeds.getOrNull(1)?.let { s ->
+        if (tasks.none { t -> t.subject == s.subject && t.chapter == s.chapter }) {
+            tasks += s.toTask("章节补强", "target", AppColors.purple, AppColors.purpleBg, planCount(s))
+        }
+    }
+    wrongSeeds.getOrNull(0)?.let { s ->
+        if (tasks.none { t -> t.subject == s.subject && t.chapter == s.chapter }) {
+            val n = s.wrong.coerceIn(5, 20)
+            tasks += s.toTask("错题复习", "inbox", AppColors.danger, AppColors.redBg, n)
+        }
+    }
+
+    val listState = rememberLazyListState()
+
+    // ── E1 Hero 文案（2026-09-19：目标日已过时不再显示「距教资 -N 天」，改「已结束」并引导更新考期）──
+    val heroTitle = when {
+        daysLeft == null -> "设置考试日期"
+        daysLeft > 0 -> "距教资 $daysLeft 天"
+        daysLeft == 0 -> "今天考试"
+        else -> "教资考试已结束"
+    }
+    val heroSub = when {
+        daysLeft == null -> "点此选择目标日，开启备考倒计时"
+        // 已过期：给出原目标日 + 出口（hero 此时恢复可点，见下方 modifier）
+        daysLeft < 0 -> "目标日 $targetDay · 点此更新下一个考期"
+        practicedCount > 0 -> "你的备考进度 · 已完成 $practicedCount/$TODAY_GOAL"
+        else -> "今天开始第一组练习吧"
+    }
+    // 未设置目标日、或目标日已过期 ⇒ hero 可点，点开日期选择器（过期时是唯一「更新考期」入口）
+    val heroClickable = daysLeft == null || daysLeft < 0
 
     Crossfade(targetState = metaLoaded, animationSpec = tween(Motion.duration(rm, Motion.SLOW)), label = "todayLoad") { loaded ->
         if (loaded) {
+            // 🔴 2026-09-19 沉浸 Hero：外框**不再整体加横向 padding**（否则 Hero 无法通栏），
+            //    改为 Hero 之外的元素各自补 sp.16 —— 统计行 / 列表内容边距与原状完全一致。
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp),
+                Modifier
+                    .fillMaxSize()
+                    .background(AppColors.bg),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-        if (loadError != null && showLoadError) {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-            ) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(
-                        "数据加载异常（已降级运行）",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    Text(
-                        loadError ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    Text(
-                        "点击关闭",
-                        modifier = Modifier.clickable { showLoadError = false }
-                            .padding(top = 4.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                }
-            }
-        }
-
-        Text("今日", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            Motivation.todayPhrase(streak, daysLeft, overallAcc, practicedCount),
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        // 升级版 Hero：放大比例 + 设计感（渐变 + 右上装饰圆 + 大数字 + 打卡胶囊）；配色走主题包渐变
-        if (daysLeft != null) {
-            val grad = AppGradients.hero(themePack, isSystemInDarkTheme())
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
-            ) {
-                Box(
-                    Modifier
-                        .background(grad, RoundedCornerShape(20.dp))
-                        .clip(RoundedCornerShape(20.dp))
-                        .padding(20.dp)
-                ) {
-                    // 企鹅主题：右侧底部半透明企鹅剪影装饰（仅首页默认主题展示，matchParentSize 不撑开布局）
-                    if (themePack == "企鹅") {
-                        Canvas(
-                            Modifier.matchParentSize().padding(end = 8.dp, bottom = 4.dp),
-                            onDraw = {
-                                val bodyR = size.height * 0.30f
-                                val headR = bodyR * 0.6f
-                                val px = size.width - bodyR * 1.6f
-                                val py = size.height - bodyR * 1.2f
-                                val fill = Color.White.copy(alpha = 0.15f)
-                                drawOval(fill, topLeft = Offset(px - bodyR, py - bodyR * 0.7f), size = Size(bodyR * 2f, bodyR * 1.8f))
-                                drawOval(Color.White.copy(alpha = 0.08f), topLeft = Offset(px - bodyR * 0.5f, py - bodyR * 0.3f), size = Size(bodyR * 0.8f, bodyR * 1.1f))
-                                drawCircle(fill, headR, Offset(px, py - bodyR * 0.8f))
-                                val beak = Path().apply {
-                                    moveTo(px + headR * 0.4f, py - bodyR * 0.85f)
-                                    lineTo(px + headR * 1.1f, py - bodyR * 0.8f)
-                                    lineTo(px + headR * 0.4f, py - bodyR * 0.75f)
-                                    close()
-                                }
-                                drawPath(beak, Color(0xFFE67E22).copy(alpha = 0.3f))
-                                drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px - headR * 0.25f, py - bodyR * 0.85f))
-                                drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px + headR * 0.3f, py - bodyR * 0.85f))
-                                drawPath(Path().apply {
-                                    moveTo(px - bodyR * 0.9f, py - bodyR * 0.2f)
-                                    quadraticBezierTo(px - bodyR * 1.3f, py + bodyR * 0.1f, px - bodyR * 0.7f, py + bodyR * 0.3f)
-                                    lineTo(px - bodyR * 0.5f, py + bodyR * 0.1f)
-                                    close()
-                                }, fill)
-                                drawPath(Path().apply {
-                                    moveTo(px + bodyR * 0.9f, py - bodyR * 0.2f)
-                                    quadraticBezierTo(px + bodyR * 1.3f, py + bodyR * 0.1f, px + bodyR * 0.7f, py + bodyR * 0.3f)
-                                    lineTo(px + bodyR * 0.5f, py + bodyR * 0.1f)
-                                    close()
-                                }, fill)
-                            }
-                        )
-                    }
-                    // 右上角半透明装饰圆（负偏移完全收进卡片内，杜绝右缘硬切）
-                    Box(
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = (-12).dp, y = (-12).dp)
-                            .size(56.dp)
-                            .background(Color.White.copy(alpha = 0.10f), CircleShape)
-                    )
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("距教资考试", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.85f))
-                        Text(
-                            if (daysLeft >= 0) "$daysLeft 天" else "已结束",
-                            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
-                        )
-                        Text(
-                            "目标日 $targetDay · 今日已练 $practicedCount 题",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Box(
+                // ══════════ 上半段（非滚动）══════════
+                // ⚠️ 沉浸 Hero 背景向上溢出容器边界（原 clip=false 参数已随折叠退场移除）。
+                CollapsingTopBlocks(spacing = 12.dp, modifier = Modifier.hubDragToScroll(listState)) {
+                    // ── E1 Hero 倒计时头（CMP-HERO with_action · 沉浸通栏）──
+                    // 沉浸溢出与「少报高度」由 HeroHeader(immersive=true) 内部完成，调用方**不再**写 offset。
+                    HeroHeader(
+                        title = heroTitle,
+                        subtitle = heroSub,
+                        icon = appPainter("today"),
+                        immersive = true,
+                        statusBarInset = statusBarTop,
+                        modifier = if (heroClickable) {
+                            Modifier.clickable { showDayPicker = true }
+                        } else {
                             Modifier
-                                .background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(999.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("连续打卡 $streak 天", style = MaterialTheme.typography.labelSmall, color = Color.White)
+                        },
+                        action = {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.18f))
+                                    .clickable { nav.navigate("settings") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(appPainter("gear"), contentDescription = "设置", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    )
+
+                }
+
+                // 2026-09-25 晚：原 E4 收起态常驻栏已删（折叠状态机退场，收起态不存在）。
+
+                // ══════════ 下半段：唯一滚动容器 ══════════
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    // 2026-09-19：外框已移除横向 padding，此处补回 sp.16 保持内容边距不变。
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 76.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──
+                    item(key = "hubBand") {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            // ── E2 今日目标进度卡 + E3 待复习卡（2 列，等高）──
+                            // 2026-09-18 按高保真图对齐：实心圆徽章 + 标签同行 + 左对齐数值 + 通栏进度条，
+                            // 卡片自带容器（surfaceContainer），不再依赖页面私有 shell。
+                            // 2026-09-21：下沉进滚动区，横向边距由 LazyColumn contentPadding 提供。
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                StatCard(
+                                    icon = "target",
+                                    value = "$practicedCount",
+                                    unit = "/$TODAY_GOAL 题",
+                                    label = "今日目标",
+                                    modifier = Modifier.weight(1f),
+                                    valueColor = AppColors.textPrimary,
+                                    iconTint = Color.White,
+                                    iconBg = AppColors.blue,
+                                    iconShape = CircleShape,
+                                    iconSize = 32.dp,
+                                    labelInline = true,
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    progress = practicedCount / TODAY_GOAL.toFloat(),
+                                    progressColor = AppColors.blue,
+                                    progressHeight = 4.dp
+                                )
+                                StatCard(
+                                    icon = "bell",
+                                    value = "$due",
+                                    unit = "个",
+                                    label = "待复习",
+                                    modifier = Modifier.weight(1f),
+                                    valueColor = AppColors.textPrimary,
+                                    iconTint = Color.White,
+                                    iconBg = if (due > 0) AppColors.warning else AppColors.success,
+                                    iconShape = CircleShape,
+                                    iconSize = 32.dp,
+                                    labelInline = true,
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                    // 🔴 03 号 E3：与左卡等高 —— 左卡尾部有「8dp 间距 + 4dp 进度条」，
+                                    //    本卡以 0% 进度条补齐同一段高度（语义＝今日复习尚未开始）。
+                                    progress = 0f,
+                                    progressColor = AppColors.success,
+                                    progressHeight = 4.dp
+                                )
+                            }
                         }
                     }
-                }
-            }
-        } else if (targetDay.isBlank()) {
-            OutlinedButton(onClick = { nav.navigate("settings") }, Modifier.fillMaxWidth()) { Text("设置目标考试日（倒计时）") }
-        } else {
-            // targetDay 非空但解析失败：显式提示，避免静默不显示
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("目标日格式异常", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onErrorContainer)
-                    Text("当前值：$targetDay（应为 yyyy-MM-dd）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer)
-                    OutlinedButton(onClick = { nav.navigate("settings") }, Modifier.fillMaxWidth()) { Text("去重新设置") }
-                }
-            }
-        }
 
-        // 行动区：开始练习（主）+ 复习 / 快速模考 快捷胶囊
-        Button(
-            onClick = {
-                appVm.checkIn()
-                practiceVm.start(PracticeConfig(mode = "随机全科", num = 20))
-                nav.navigate(Screen.Practice.route)
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(appPainter("play"), contentDescription = null)
-            Spacer(Modifier.width(6.dp))
-            Text("开始练习")
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(
-                onClick = {
-                    appVm.checkIn()
-                    practiceVm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc))
-                    nav.navigate(Screen.Practice.route)
-                },
-                modifier = Modifier.weight(1f)
-            ) { Text("复习 $due 题") }
-            OutlinedButton(onClick = { showMock = true }, modifier = Modifier.weight(1f)) { Text("快速模考 ▾") }
-        }
-
-        // 学习概览（2x2 芯片；连续打卡 / 目标日已并入上方 Hero，避免重复）
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("题库总量", "$totalQuestions", Modifier.weight(1f))
-            StatCard("已练习", "$practicedCount", Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCard("总正确率", if (overallAcc < 0f) "—" else "${(overallAcc * 100).toInt()}%", Modifier.weight(1f))
-            StatCard("待复习", "$due 题", Modifier.weight(1f))
-        }
-
-        // 今日待复习入口已并入上方「复习 N 题」胶囊；开始练习与快捷胶囊已在 Hero 下方统一置顶
-
-        // 薄弱章节：紧凑列表（整行点击即去练该章，去掉逐卡按钮，节省竖向空间）
-        Text("薄弱章节", style = MaterialTheme.typography.titleMedium)
-        if (weakTop3.isEmpty()) {
-            Text("暂无数据，去做几道题吧～", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-        } else {
-            Card(
-                Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    weakTop3.forEach { (subj, ch, sc) ->
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
+                    if (tasks.isEmpty()) {
+                        // ── E12 空态（CMP-EMPTYHINT）──
+                        item(key = "empty") { TodayEmptyHint(practiced = practicedCount > 0, onGo = { nav.navigate(Screen.Practice.route) }) }
+                    } else {
+                        // ── E5 dot 分组标题（本页圆点标题上限 2 处之第 1 处）──
+                        item(key = "taskHead") { SectionTitleDot("今日任务", trailing = "${tasks.size} 项") }
+                        // ── E6 今日任务卡（CMP-LISTROW nav 变体 + E7 类型角标）──
+                        items(tasks, key = { "${it.subject}/${it.chapter}" }, contentType = { "task" }) { t ->
+                            NavRowCard(
+                                icon = t.icon,
+                                title = t.title,
+                                subtitle = t.subtitle,
+                                iconTint = t.fg,
+                                iconBg = t.bg,
+                                badge = { MiniBadge(t.badge, t.fg, t.bg) },
+                                onClick = {
                                     appVm.checkIn()
-                                    practiceVm.startChapter(subj, ch, null, 20, if (subj == "科三") disc else null)
+                                    practiceVm.startChapter(t.subject, t.chapter, null, t.questions, if (t.subject == "科三") disc else null)
                                     nav.navigate(Screen.Practice.route)
                                 }
-                        ) {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("$subj · $ch", style = MaterialTheme.typography.bodyMedium)
-                                Text("${(sc * 100).toInt()}% 薄弱", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = sc.toFloat().coerceIn(0f, 1f),
-                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
-                }
-            }
-        }
 
-        // 备考工具：4 列等宽等高网格，图标与文字居中（保留首页快捷入口，不占额外竖向空间）
-        Text("备考工具", style = MaterialTheme.typography.titleMedium)
-        Row(
-            Modifier.height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            QuickCard("备课教案", appPainter("school"), onClick = { nav.navigate("lesson") }, modifier = Modifier.weight(1f))
-            QuickCard("收集箱", appPainter("inbox"), onClick = { nav.navigate("inbox") }, modifier = Modifier.weight(1f))
-            QuickCard("校订", appPainter("proof"), onClick = { nav.navigate("proof") }, modifier = Modifier.weight(1f))
-            QuickCard("AI 帮手", appPainter("chat"), onClick = { nav.navigate("aichat") }, modifier = Modifier.weight(1f))
-        }
-        // 快速模考入口已并入上方「快速模考 ▾」胶囊，点击弹出三档选择
+                    // ── E8 快捷入口分组标题（plain 变体，本页第 2 处不用圆点）──
+                    // 🔴 2026-09-27 间距双轨：本 item 位于 LazyColumn(spacedBy = 12.dp) 内，
+                    //    区块头补前导 8dp ⇒ 与上一区块间距 12 + 8 = 20dp（卡片间距仍为 12dp，不动全局 spacedBy）。
+                    item(key = "quickHead") { GroupTitle("快捷入口", Modifier.padding(top = 8.dp)) }
+                    // ── E9 快捷入口卡（CMP-QUICKACTION 3col）──
+                    item(key = "quickRow") {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            QuickActionCard(
+                                "play", "继续练习", "12 题未完成", "practice",
+                                onClick = { nav.navigate(Screen.Practice.route) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionCard(
+                                "exam", "开始模考", "限时 120 分", "mock",
+                                onClick = { showMock = true },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickActionCard(
+                                "inbox", "错题本", "34 道待清", "wrong",
+                                onClick = { nav.navigate("proof") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    // ── E10 复习提醒条（无到期整条不渲染）──
+                    if (due > 0) {
+                        item(key = "dueBar") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(AppColors.greenBg)
+                                    .clickable { nav.navigate("proof") }
+                                    .padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(16.dp).clip(CircleShape).background(AppColors.success.copy(alpha = 0.18f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(Modifier.size(8.dp).clip(CircleShape).background(AppColors.success))
+                                }
+                                Text(
+                                    "$due 个知识点今日到期",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.success, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
             }
         } else {
             SkeletonTodayScreen()
         }
 
-        // 快速模考三档选择（由首页「快速模考 ▾」胶囊唤起）
+        // ── 快速模考三档选择 ──
         if (showMock) {
             AlertDialog(
                 onDismissRequest = { showMock = false },
                 confirmButton = {},
-                dismissButton = {},
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = { showMock = false }) { Text("取消") }
+                },
                 title = { Text("快速模考（限时套卷）") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -395,152 +398,170 @@ fun TodayScreen(nav: NavHostController) {
         }
     }
 
-    // 首开轻引导：欢迎语 + 内联设置目标日（不跳转设置页；灵动岛为测试功能，不在此引导）
-    val todayMillis = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    // ── 首开轻引导 ──
+    val todayMillis = todayStartMillis()
     val onboardPickerState = rememberDatePickerState(initialSelectedDateMillis = todayMillis)
-    var showOnboardPicker by remember { mutableStateOf(false) }
     if (showOnboard) {
         AlertDialog(
             onDismissRequest = { showOnboard = false; appVm.setOnboarded(true) },
             confirmButton = {
-                Button(onClick = {
-                    showOnboard = false
-                    showOnboardPicker = true
-                }) { Text("设置目标日") }
+                Button(onClick = { showOnboard = false; showDayPicker = true }) { Text("设置目标日") }
             },
             dismissButton = {
-                OutlinedButton(onClick = {
-                    showOnboard = false
-                    appVm.setOnboarded(true)
-                }) { Text("稍后再说") }
+                OutlinedButton(onClick = { showOnboard = false; appVm.setOnboarded(true) }) { Text("稍后再说") }
             },
             title = { Text("欢迎使用综合教资备考平台") },
             text = {
-                Text("建议先设置「教资考试目标日」，首页会出现倒计时，帮你感知备考节奏。设置后即可从「开始练习」做 20 题，今天就看到成长曲线。")
+                Text("建议先设置「教资考试目标日」，首页会出现倒计时，帮你感知备考节奏。")
             }
         )
     }
-    if (showOnboardPicker) {
+    if (showDayPicker) {
         DatePickerDialog(
-            onDismissRequest = { showOnboardPicker = false },
+            onDismissRequest = { showDayPicker = false },
             confirmButton = {
                 Button(onClick = {
-                    onboardPickerState.selectedDateMillis?.let { ms ->
-                        val iso = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                            .format(DateTimeFormatter.ISO_LOCAL_DATE)
-                        appVm.setTargetDay(iso)
-                    }
-                    showOnboardPicker = false
+                    onboardPickerState.selectedDateMillis?.let { ms -> appVm.setTargetDay(ms.toIsoDate()) }
+                    showDayPicker = false
                     appVm.setOnboarded(true)
                 }) { Text("保存") }
             },
             dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showOnboardPicker = false }) { Text("取消") }
+                androidx.compose.material3.TextButton(onClick = { showDayPicker = false }) { Text("取消") }
             }
-        ) {
-            DatePicker(state = onboardPickerState)
-        }
+        ) { DatePicker(state = onboardPickerState) }
     }
 }
 
+// ============================================================
+// 本页私有小件
+// ============================================================
+
+/** 空态提示（CMP-EMPTYHINT · no_data）：44dp 描边图标 → 标题 → 说明 → 主按钮 */
 @Composable
-private fun QuickCard(title: String, icon: Painter, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun TodayEmptyHint(practiced: Boolean, onGo: () -> Unit) {
     Card(
-        modifier.fillMaxHeight().clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            Modifier.fillMaxSize().padding(vertical = 12.dp, horizontal = 10.dp),
+            Modifier.fillMaxWidth().padding(vertical = 28.dp, horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(painter = icon, contentDescription = title, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
-            Text(title, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(AppColors.blueBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(appPainter(if (practiced) "check" else "today"), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(24.dp))
+            }
+            Text(
+                if (practiced) "今日任务已清空" else "还没有学习数据",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                if (practiced) "做得不错，想再练一组也可以随时开始" else "完成第一组练习后，这里会出现为你定制的今日任务",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppColors.textSecondary,
+                fontSize = 13.sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Button(onClick = onGo) { Text("去练习") }
         }
     }
 }
 
-@Composable
-private fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
-    Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-        Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+/** 任务种子（章节聚合态） */
+private data class TaskSeed(
+    val subject: String,
+    val chapter: String,
+    val total: Int,
+    val practiced: Int,
+    val wrong: Int,
+    val score: Float
+)
+
+/** 今日任务（示例文案：`优先练习 · 第三章` / `12 题 · 错题 4`） */
+private data class TodayTask(
+    val icon: String,
+    val badge: String,
+    val title: String,
+    val subtitle: String,
+    val fg: Color,
+    val bg: Color,
+    val subject: String,
+    val chapter: String,
+    val questions: Int
+)
+
+private fun TaskSeed.toTask(badge: String, icon: String, fg: Color, bg: Color, questions: Int) =
+    TodayTask(
+        icon = icon,
+        badge = badge,
+        title = "$badge · $chapter",
+        subtitle = "$questions 题 · 错题 $wrong",
+        fg = fg,
+        bg = bg,
+        subject = subject,
+        chapter = chapter,
+        questions = questions
+    )
+
+/** 练习/补强题量：优先取「尚未练过」的余量，已练完则给一组 10 题复习 */
+private fun planCount(s: TaskSeed): Int {
+    val remain = (s.total - s.practiced).coerceAtLeast(0)
+    return when {
+        remain >= 20 -> 20
+        remain > 0 -> remain
+        else -> 10
     }
+}
+
+/** 简单的记忆键 */
+@Composable
+private fun <T> rememberKey(vararg keys: Any?, computation: () -> T): T {
+    return remember(keys) { computation() }
 }
 
 /**
- * 冷启动骨架屏：meta 加载完成前显示占位，消除白屏/空内容闪烁。
- * 用无限平移的浅色渐变模拟「加载中」微光，轻量无额外依赖。
+ * 冷启动骨架屏（E11）：占位高度与真实布局逐块对齐，避免加载完成瞬间的跳变。
+ * 骨架刻意不复用折叠基建 —— 加载期不存在滚动行为。
  */
-@Composable
-private fun ShimmerBox(modifier: Modifier, boxHeight: androidx.compose.ui.unit.Dp) {
-    // 系统「减少动态效果」开启时停掉无限微光，改为静态占位，避免持续闪烁扰人（§39 P3 待改进①）
-    if (reduceMotionNow(LocalContext.current)) {
-        Box(
-            modifier
-                .fillMaxWidth()
-                .height(boxHeight)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        )
-        return
-    }
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val x by transition.animateFloat(
-        initialValue = 0f, targetValue = 600f,
-        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Restart),
-        label = "shimmerX"
-    )
-    Box(
-        modifier
-            .fillMaxWidth()
-            .height(boxHeight)
-            .clip(MaterialTheme.shapes.medium)
-            .background(
-                Brush.horizontalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                        MaterialTheme.colorScheme.surfaceVariant
-                    ),
-                    startX = x - 200f, endX = x
-                )
-            )
-    )
-}
-
 @Composable
 private fun SkeletonTodayScreen() {
     Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp),
+        Modifier
+            .fillMaxSize()
+            .background(AppColors.bg)
+            .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ShimmerBox(Modifier, 30.dp)
-        ShimmerBox(Modifier, 18.dp)
-        ShimmerBox(Modifier, 96.dp) // 倒计时 Hero
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ShimmerBox(Modifier.weight(1f), 72.dp)
-            ShimmerBox(Modifier.weight(1f), 72.dp)
+        Spacer(Modifier.height(12.dp))
+        ShimmerBox(Modifier.fillMaxWidth(), 100.dp, 20.dp)   // E1 Hero
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ShimmerBox(Modifier.weight(1f), 118.dp, 24.dp)   // E2 今日目标
+            ShimmerBox(Modifier.weight(1f), 118.dp, 24.dp)   // E3 待复习
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ShimmerBox(Modifier.weight(1f), 72.dp)
-            ShimmerBox(Modifier.weight(1f), 72.dp)
+        Spacer(Modifier.height(4.dp))
+        ShimmerBox(Modifier.fillMaxWidth(), 20.dp, 8.dp)     // E5 dot 标题
+        ShimmerBox(Modifier.fillMaxWidth(), 76.dp, 20.dp)    // E6 任务卡 ×3
+        ShimmerBox(Modifier.fillMaxWidth(), 76.dp, 20.dp)
+        ShimmerBox(Modifier.fillMaxWidth(), 76.dp, 20.dp)
+        ShimmerBox(Modifier.fillMaxWidth(), 22.dp, 8.dp)     // E8 分组标题
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {   // E9 快捷入口 3 列
+            ShimmerBox(Modifier.weight(1f), 112.dp, 20.dp)
+            ShimmerBox(Modifier.weight(1f), 112.dp, 20.dp)
+            ShimmerBox(Modifier.weight(1f), 112.dp, 20.dp)
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ShimmerBox(Modifier.weight(1f), 72.dp)
-            ShimmerBox(Modifier.weight(1f), 72.dp)
-        }
-        ShimmerBox(Modifier, 22.dp) // 小标题
-        ShimmerBox(Modifier, 120.dp) // 薄弱章节卡
-        ShimmerBox(Modifier, 48.dp) // 开始练习按钮
+        ShimmerBox(Modifier.fillMaxWidth(), 48.dp, 20.dp)    // E10 复习提醒条
     }
 }
 
-/** 简单的记忆键（避免额外依赖） */
-@Composable
-private fun <T> rememberKey(vararg keys: Any?, computation: () -> T): T {
-    return androidx.compose.runtime.remember(keys) { computation() }
-}
+// ShimmerBox 已收敛为公共骨架原子：ui/components/Skeleton.kt
+// （依据 03 号 cross_screen_consistency「其他页补骨架必须复用同一 ShimmerBox」，2026-09-19）

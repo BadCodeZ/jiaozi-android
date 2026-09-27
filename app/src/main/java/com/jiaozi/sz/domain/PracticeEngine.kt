@@ -1,5 +1,6 @@
 package com.jiaozi.sz.domain
 
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.local.ProgressEntity
 import com.jiaozi.sz.data.model.Question
 import kotlin.math.roundToInt
@@ -16,7 +17,13 @@ data class PracticeConfig(
     val interleave: Boolean = false,       // 穿插混合
     val cause: String? = null,             // 错因强化目标
     val disc: String? = null,              // 科三学科
-    val timeLimitSec: Int? = null          // 模考限时（秒），非模考为 null
+    val timeLimitSec: Int? = null,         // 模考限时（秒），非模考为 null
+    val showAnswer: Boolean = false,       // 答案即时显示
+    val chapters: List<String> = emptyList(), // 多选章节（练习设置独立页）；为空表示不限定章节
+    val shuffleOptions: Boolean = false,   // 选项乱序（04 号 F3）：打乱每题选项顺序并同步改写答案字母
+    val includeWrong: Boolean = false,     // 混入错题（04 号 F5）：把 wrongBook 题优先并入本轮题池
+    val typeCombo: String = "choice",      // 题型组合：choice=仅选择题 / subjective=仅主观题 / all=混合
+    val stage: String? = null              // 报考学段（2026-09-28 学段筛题）："初中"/"高中"；null ⇒ 不过滤
 )
 
 /**
@@ -31,33 +38,89 @@ object PracticeEngine {
         config: PracticeConfig,
         progress: Map<String, ProgressEntity>
     ): List<Question> {
-        val pool = when (config.mode) {
-            "按科目" -> all.filter { it.subject == config.subj }
-            "章节练习" -> all.filter {
+        val pool = when {
+            config.chapters.isNotEmpty() -> all.filter { it.subject == config.subj && it.chapter in config.chapters }
+            config.mode == "按科目" -> all.filter { it.subject == config.subj }
+            config.mode == "章节练习" -> all.filter {
                 it.subject == config.subj && it.chapter == config.chapter &&
                     (config.section == null || it.section == config.section)
             }
-            "薄弱优先" -> weak(all, progress, Int.MAX_VALUE)
-            "仅复习" -> due(all, progress)
-            "错题本" -> wrong(all, progress)
-            "错因强化" -> cause(all, progress, config.cause ?: "")
-            "随机全科" -> all
+            config.mode == "薄弱优先" -> weak(all, progress, Int.MAX_VALUE)
+            config.mode == "仅复习" -> due(all, progress)
+            config.mode == "错题本" -> wrong(all, progress)
+            config.mode == "错因强化" -> cause(all, progress, config.cause ?: "")
+            config.mode == "随机全科" -> all
             else -> all
         }.filter {
             // 科三始终只取当前学科
             it.subject != "科三" || it.disc == config.disc
+        }.filter {
+            // 🔴 2026-09-28 学段筛题：全部模式统一受限（配置口径＝「本学段 + 通用题」）。
+            //   通用题（stage == null）恒命中；config.stage == null ⇒ 不启用过滤（兼容未设置）。
+            BankStore.stageMatches(it, config.stage)
         }
 
-        val limited = pool.shuffled().take(config.num.coerceAtLeast(1))
-        return if (config.interleave && config.mode in listOf("随机全科", "按科目")) {
-            interleave(limited)
-        } else {
-            limited
+        // 🔴 2026-09-28 题型分离：按 typeCombo 过滤，使选择题与主观题互不混排。
+        //   choice→仅选择题（默认）；subjective→仅主观题；all→不过滤（混合）。
+        val typed = when (config.typeCombo) {
+            "subjective" -> pool.filter { it.isSubjective }
+            "choice" -> pool.filter { !it.isSubjective }
+            else -> pool
         }
+        val limited = typed.shuffled().take(config.num.coerceAtLeast(1))
+        // F5 混入错题：在已抽题基础上，用同范围的错题等量替换尾部，总题量保持不变
+        val mixed = if (config.includeWrong) mergeWrong(limited, all, config, progress) else limited
+        val ordered = if (config.interleave && config.mode in listOf("随机全科", "按科目")) {
+            interleave(mixed)
+        } else {
+            mixed
+        }
+        // F3 选项乱序：重排选项文本并同步改写答案字母（下游判分/渲染零改动）
+        return if (config.shuffleOptions) ordered.map { shuffleQuestionOptions(it) } else ordered
+    }
+
+    /**
+     * 混入错题（04 号 F5）：从同范围（科目 / 科三学科 / 章节）的 wrongBook 题中取最多 1/3 题量，
+     * 替换当前题池尾部等量题目，保证总题量不变。错题不足时按实际数量替换（不补位）。
+     */
+    private fun mergeWrong(
+        base: List<Question>,
+        all: List<Question>,
+        config: PracticeConfig,
+        progress: Map<String, ProgressEntity>
+    ): List<Question> {
+        if (base.isEmpty()) return base
+        val quota = maxOf(1, base.size / 3)
+        val scope = all.filter { it.subject != "科三" || it.disc == config.disc }
+            .filter { BankStore.stageMatches(it, config.stage) }   // 🔴 学段：错题补充池同样受限
+            .filter { config.chapters.isEmpty() || (it.subject == config.subj && it.chapter in config.chapters) }
+        val extra = scope
+            .filter { progress[it.id]?.wrongBook == true && it !in base }
+            .shuffled()
+            .take(quota)
+        if (extra.isEmpty()) return base
+        val keep = base.take((base.size - extra.size).coerceAtLeast(0))
+        return (keep + extra).shuffled()
     }
 
     fun chapter(questions: List<Question>, limit: Int = 30): List<Question> =
         questions.shuffled().take(limit)
+
+    /**
+     * 题型过滤（与 [build] 内口径一致）：choice=仅选择题 / subjective=仅主观题 / all=不过滤。
+     * 供不经由 [build] 直连 begin() 的入口（如单题/AI 题库练习）复用，保证全局题型偏好统一。
+     *
+     * 🔴 同时施加学段过滤（[stage] 非空时按「本学段 + 通用题」口径），保证绕过 [build] 的入口
+     *   同样不能取到与报考学段不匹配的题目。
+     */
+    fun filterByType(all: List<Question>, typeCombo: String, stage: String? = null): List<Question> {
+        val typed = when (typeCombo) {
+            "subjective" -> all.filter { it.isSubjective }
+            "choice" -> all.filter { !it.isSubjective }
+            else -> all
+        }
+        return if (stage == null) typed else typed.filter { BankStore.stageMatches(it, stage) }
+    }
 
     /** 薄弱优先：按薄弱分降序 */
     fun weak(questions: List<Question>, progress: Map<String, ProgressEntity>, limit: Int = 30): List<Question> =
@@ -99,10 +162,12 @@ object PracticeEngine {
      * 科三取当前 disc 且不串其他学科；卷内无重复。
      * weights 为空（用户未配置）时退化为均匀 shuffle，行为与旧版一致。
      */
-    fun blueprint(questions: List<Question>, disc: String, count: Int = 50, weights: Map<String, Double> = emptyMap()): List<Question> {
-        val k1 = questions.filter { it.subject == "科一" }
-        val k2 = questions.filter { it.subject == "科二" }
-        val k3 = questions.filter { it.subject == "科三" && it.disc == disc }
+    fun blueprint(questions: List<Question>, disc: String, count: Int = 50, weights: Map<String, Double> = emptyMap(), stage: String? = null): List<Question> {
+        // 🔴 2026-09-28 学段筛题：模考蓝图三科题源统一先过学段（本学段 + 通用题）
+        val scoped = if (stage == null) questions else questions.filter { BankStore.stageMatches(it, stage) }
+        val k1 = scoped.filter { it.subject == "科一" }
+        val k2 = scoped.filter { it.subject == "科二" }
+        val k3 = scoped.filter { it.subject == "科三" && it.disc == disc }
         val n1 = (count * 0.33f).toInt()
         val n2 = (count * 0.33f).toInt()
         val n3 = count - n1 - n2

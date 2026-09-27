@@ -1,12 +1,20 @@
 package com.jiaozi.sz.ui.screens
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
+import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.CollapsingTopBlocks
+import com.jiaozi.sz.ui.components.hubDragToScroll
+import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.AppColors
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,12 +24,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
+import com.jiaozi.sz.ui.components.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +39,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.OutlinedTextField
+import androidx.activity.compose.BackHandler
+import com.jiaozi.sz.ui.components.appPainter
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -39,14 +52,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.jiaozi.sz.domain.PracticeEngine
 import com.jiaozi.sz.data.local.ProgressEntity
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.text.style.TextOverflow
+import com.jiaozi.sz.ui.components.StatBand
+import com.jiaozi.sz.ui.components.StatBandItem
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.toArgb
 
 /**
  * 章节健康度（chapters 视图，高级维护功能，对齐网页端章节健康）。
@@ -88,36 +111,92 @@ fun ChaptersScreen(nav: NavHostController) {
         }.sortedWith(compareBy({ it.acc }, { -it.count }))
     }
 
-    val goodCol = Color(0xFF3FA45B)
-    val warnCol = Color(0xFFE0A52B)
-    val badCol = Color(0xFFE94634)
+    val goodCol = AppColors.success
+    val warnCol = AppColors.warning
+    val badCol = AppColors.danger
     val noneCol = MaterialTheme.colorScheme.outlineVariant
 
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            subjects.forEach { s -> FilterChip(selected = subj == s, onClick = { subj = s }, label = { Text(s) }) }
+    val listState = rememberLazyListState()
+
+    // 科目 + 排序 chips：原两行合并为一行横向滚动（2026-09-25 晚：原「两态互斥渲染」已随折叠退场取消）
+    val filterChips: @Composable RowScope.() -> Unit = {
+        subjects.forEach { s -> FilterChip(selected = subj == s, onClick = { subj = s }, label = { Text(BankStore.shortName(s)) }) }
+        listOf("掌握度", "题数").forEach { k ->
+            FilterChip(selected = sortBy == k, onClick = { sortBy = k }, label = { Text(if (k == "掌握度") "按掌握度" else "按题数") })
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("掌握度", "题数").forEach { k ->
-                FilterChip(selected = sortBy == k, onClick = { sortBy = k }, label = { Text(if (k == "掌握度") "按掌握度" else "按题数") })
+    }
+
+    Column(Modifier.fillMaxSize().background(AppColors.bg).padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // ① Hero + 概况说明：常驻不滚，手势直通下方列表
+        CollapsingTopBlocks(spacing = 14.dp, modifier = Modifier.hubDragToScroll(listState)) {
+            HeroHeader(
+                "章节", "按章练 · 专项突破薄弱点",
+                // 🔴 2026-09-23 按 08 号 E1：Hero with_icon(school)，走独立装饰位
+                decorIcon = appPainter("school"),
+                // 🔴 2026-09-22 二级 Hero 统一沉浸通栏
+                immersive = true, onBack = { nav.navigateUp() }
+            )
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = filterChips
+        )
+            // ── 章节统计带（08 号 E2 / F1）：3 列 —— 章节数 / 已练 / 错题 ──
+            val totalDone = health.sumOf { it.done }
+            val totalWrong = health.sumOf { it.wrong }
+            StatBand(
+                items = listOf(
+                    StatBandItem(health.size.toString(), "章节数", "章"),
+                    StatBandItem(totalDone.toString(), "已练", "题"),
+                    StatBandItem(
+                        totalWrong.toString(), "错题", "题",
+                        valueColor = if (totalWrong > 0) AppColors.danger else null
+                    )
+                ),
+                showDivider = true
+            )
+        }
+
+        // 2026-09-25 晚：原 ② 收起态紧凑栏已整块删除（折叠状态机退场，收起态不存在）。
+
+        // ── 数据自检横条（08 号 E3 / F5）：顶部通栏，三行各自可点跳到对应修复入口 ──
+        val noAnalysisCount = qs.count { it.analysis.isNullOrBlank() || it.analysis.length < 6 }
+        val unclassifiedCount = qs.count { it.chapter.isBlank() || it.chapter == "未分类" || it.chapter == "收集箱" }
+        val stoppedCount = health.count { (chapterConfig[PracticeEngine.chapterKey(subj, if (subj == "科三") disc else null, it.chapter)]?.weight ?: 1.0) <= 0.0 }
+        if (health.isNotEmpty() && (noAnalysisCount > 0 || unclassifiedCount > 0 || stoppedCount > 0)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = AppColors.warningBg),
+                shape = RoundedCornerShape(14.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("数据自检", style = MaterialTheme.typography.labelMedium, color = AppColors.warning, fontWeight = FontWeight.SemiBold)
+                    if (noAnalysisCount > 0) {
+                        SelfCheckRow("缺解析 $noAnalysisCount 题") { nav.navigate("proof") }
+                    }
+                    if (unclassifiedCount > 0) {
+                        SelfCheckRow("未归类章节 $unclassifiedCount 题") { editing = health.firstOrNull { it.chapter == "未归类" } }
+                    }
+                    if (stoppedCount > 0) {
+                        SelfCheckRow("权重已停用 $stoppedCount 章") { editing = health.firstOrNull { (chapterConfig[PracticeEngine.chapterKey(subj, if (subj == "科三") disc else null, it.chapter)]?.weight ?: 1.0) <= 0.0 } }
+                    }
+                }
             }
         }
-        val weak = health.count { it.acc in 0f..0.5f }
-        val unpracticed = health.count { it.acc < 0f }
-        Text(
-            "共 ${health.size} 章 · 薄弱 ${weak} 章 · 未练 ${unpracticed} 章。未练章节已标记「优先练习」，薄弱章节建议专项突破。",
-            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
-        val sorted = remember(health, sortBy) {
+            val sorted = remember(health, sortBy) {
             if (sortBy == "题数") health.sortedWith(compareBy({ -it.count }))
             else health.sortedWith(compareBy({ it.acc }, { -it.count }))
         }
+        // 🔴 2026-09-23（#35）：章节卡按当前排序名次加序号（章节名唯一，作 key 稳妥）
+        val rankByChapter = remember(sorted) { sorted.mapIndexed { i, c -> c.chapter to (i + 1) }.toMap() }
 
         if (health.isEmpty()) {
             EmptyHint("bars", "该科目暂无题目", "先去「练习」或收集箱转题，章节健康度会自动统计。")
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), state = listState, modifier = Modifier.fillMaxWidth().weight(1f).navigationBarsPadding()) {
                 items(sorted, contentType = { "chapter" }) { h ->
                     val col = when {
                         h.acc < 0f -> noneCol
@@ -131,30 +210,64 @@ fun ChaptersScreen(nav: NavHostController) {
                         h.acc >= 0.5f -> "一般"
                         else -> "薄弱"
                     }
-                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // 本章权重（读态表达）：默认 1.0×，≤0 视为「已停用」
+                    val cfgNow = chapterConfig[PracticeEngine.chapterKey(subj, if (subj == "科三") disc else null, h.chapter)]
+                    val weightNow = (cfgNow?.weight ?: 1.0).toFloat()
+                    // 本章缺解析题数（行内异常徽标的数据源）
+                    val chQs = qs.filter {
+                        if (h.chapter == "未归类") it.chapter.isBlank() || it.chapter == "未分类" || it.chapter == "收集箱"
+                        else it.chapter == h.chapter
+                    }
+                    val chNoAnalysis = chQs.count { it.analysis.isNullOrBlank() || it.analysis.length < 6 }
+
+                    Card(
+                        // 🔴 2026-09-23（08 号 E5）：整卡可点 → 直接进该章练习
+                        Modifier.fillMaxWidth().clickable {
+                            appVm.setPendingChapterPractice(subj, h.chapter)
+                            nav.navigate("practice")
+                        },
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (h.acc in 0f..0.5f) {
                                         Canvas(Modifier.size(10.dp)) {
                                             drawContext.canvas.nativeCanvas.drawCircle(
                                                 size.width / 2f, size.height / 2f, size.width / 2f,
-                                                android.graphics.Paint().apply { color = badCol.value.toInt(); isAntiAlias = true }
+                                                android.graphics.Paint().apply { color = badCol.toArgb(); isAntiAlias = true }
                                             )
                                         }
                                     }
                                     Canvas(Modifier.size(12.dp)) {
                                         drawContext.canvas.nativeCanvas.drawCircle(
                                             size.width / 2f, size.height / 2f, size.width / 2f,
-                                            android.graphics.Paint().apply { color = col.value.toInt(); isAntiAlias = true }
+                                            android.graphics.Paint().apply { color = col.toArgb(); isAntiAlias = true }
                                         )
                                     }
-                                    val dispName = chapterConfig[PracticeEngine.chapterKey(subj, if (subj == "科三") disc else null, h.chapter)]?.name?.takeIf { it.isNotBlank() } ?: h.chapter
-                                    Text(dispName, style = MaterialTheme.typography.bodyMedium)
+                                    // 🔴 2026-09-23（#35）：章节卡序号（按当前排序位的名次，1 起）
+                                    Text(
+                                        "${rankByChapter[h.chapter] ?: 0}",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = AppColors.textSecondary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.width(22.dp)
+                                    )
+                                    val dispName = cfgNow?.name?.takeIf { it.isNotBlank() } ?: h.chapter
+                                    // 🔴 2026-09-23（08 号 E5）：标题 16sp SemiBold
+                                    Text(dispName, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(status, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
-                                    TextButton(onClick = { editing = h }) { Text("编辑") }
+                                    // ── 行内异常徽标（08 号 E6）：同一张卡只取其一，优先级 权重停用 > 缺解析 ──
+                                    when {
+                                        weightNow <= 0f -> StatusChip("已停用", AppColors.warningBg, AppColors.warning)
+                                        chNoAnalysis > 0 -> StatusChip("缺解析 $chNoAnalysis", AppColors.redBg, AppColors.danger)
+                                        else -> Text(status, style = MaterialTheme.typography.labelMedium, color = col, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                    Icon(appPainter("chevron"), contentDescription = null, Modifier.size(18.dp), tint = AppColors.textSecondary.copy(alpha = 0.4f))
                                 }
                             }
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -166,22 +279,40 @@ fun ChaptersScreen(nav: NavHostController) {
                             if (h.acc >= 0f) {
                                 LinearProgressIndicator(
                                     progress = { h.acc.coerceIn(0f, 1f) },
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
                                     color = col,
-                                    trackColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                                    trackColor = AppColors.trackGray
                                 )
                             }
-                            Row(Modifier.fillMaxWidth(), Arrangement.End) {
+                            // ── 模考权重（08 号 E5）：读态必须表达，6dp primary 条 + 右对齐数值 ──
+                            Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
+                                Text("模考权重", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary)
+                                Text(
+                                    "${"%.1f".format(weightNow)}×",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (weightNow <= 0f) AppColors.danger else MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            LinearProgressIndicator(
+                                progress = { (weightNow / 2f).coerceIn(0f, 1f) },
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                color = if (weightNow <= 0f) AppColors.danger else MaterialTheme.colorScheme.primary,
+                                trackColor = AppColors.trackGray
+                            )
+                            Row(Modifier.fillMaxWidth(), Arrangement.End, Alignment.CenterVertically) {
+                                TextButton(onClick = { editing = h }) { Text("编辑", fontSize = 13.sp) }
+                                Spacer(Modifier.width(8.dp))
                                 if (h.acc < 0f) {
                                     Button(onClick = {
                                         appVm.setPendingChapterPractice(subj, h.chapter)
                                         nav.navigate("practice")
-                                    }) { Text("优先练习") }
+                                    }, shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue)) { Text("优先练习", fontSize = 13.sp, fontWeight = FontWeight.Medium) }
                                 } else {
                                     OutlinedButton(onClick = {
                                         appVm.setPendingChapterPractice(subj, h.chapter)
                                         nav.navigate("practice")
-                                    }) { Text("去练该章") }
+                                    }, shape = RoundedCornerShape(12.dp)) { Text("去练该章", fontSize = 13.sp, fontWeight = FontWeight.Medium) }
                                 }
                             }
                         }
@@ -197,13 +328,33 @@ fun ChaptersScreen(nav: NavHostController) {
                     val cfg = chapterConfig[key]
                     var name by remember(eh.chapter) { mutableStateOf(cfg?.name ?: "") }
                     var weight by remember(eh.chapter) { mutableStateOf((cfg?.weight ?: 1.0).toFloat()) }
+                    // 🔴 2026-09-23 脏态守卫（08 号 E10）：改了显示名/权重后，下滑关闭抽屉或按返回键
+                    //    都会静默丢弃改动 ⇒ 一律拦截到二次确认。
+                    val origName = cfg?.name ?: ""
+                    val origWeight = (cfg?.weight ?: 1.0).toFloat()
+                    val dirty = name != origName || kotlin.math.abs(weight - origWeight) > 0.001f
+                    var confirmDiscard by remember { mutableStateOf(false) }
+                    BackHandler(enabled = dirty) { confirmDiscard = true }
                     val chQs = if (eh.chapter == "未归类")
                         qs.filter { it.chapter.isBlank() || it.chapter == "未分类" || it.chapter == "收集箱" }
                     else
                         qs.filter { it.chapter == eh.chapter }
                     val noAnalysis = chQs.count { it.analysis.isNullOrBlank() || it.analysis.length < 6 }
                     val unclassified = chQs.count { it.chapter.isBlank() || it.chapter == "未分类" || it.chapter == "收集箱" }
-                    ModalBottomSheet(onDismissRequest = { editing = null }) {
+                    if (confirmDiscard) {
+                        AlertDialog(
+                            onDismissRequest = { confirmDiscard = false },
+                            title = { Text("放弃修改？") },
+                            text = { Text("「${eh.chapter}」的显示名或权重已改动，关闭将不会保存。") },
+                            confirmButton = {
+                                TextButton(onClick = { confirmDiscard = false; editing = null }) { Text("放弃") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { confirmDiscard = false }) { Text("继续编辑") }
+                            }
+                        )
+                    }
+                    ModalBottomSheet(onDismissRequest = { if (dirty) confirmDiscard = true else editing = null }) {
                         Column(Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("编辑章节 · ${eh.chapter}", style = MaterialTheme.typography.titleMedium)
                             OutlinedTextField(name, { name = it }, label = { Text("显示名（改名）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -212,8 +363,8 @@ fun ChaptersScreen(nav: NavHostController) {
                                 Text("${"%.1f".format(weight)}×", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                             }
                             Slider(value = weight, onValueChange = { weight = it }, valueRange = 0f..2f, steps = 39)
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
-                                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+                                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text("数据自检", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
                                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {
                                         Text("题数", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -252,3 +403,34 @@ private data class ChapterHealth(
     val acc: Float,
     val wrong: Int
 )
+
+/** 行内状态 / 异常徽标（08 号 E6）：浅底胶囊 + 语义色文字，11sp。 */
+@Composable
+private fun StatusChip(text: String, bg: Color, fg: Color) {
+    Box(
+        Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(text, color = fg, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/**
+ * 数据自检横条的单行（08 号 E3 / E9）：**每行可点**，点击后跳到对应修复入口 ——
+ * 规范 anti_patterns 明确禁止「只报数字不给去处」的死提示。
+ */
+@Composable
+private fun SelfCheckRow(text: String, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(onClick = onClick).padding(vertical = 4.dp),
+        Arrangement.SpaceBetween,
+        Alignment.CenterVertically
+    ) {
+        Text(text, style = MaterialTheme.typography.bodySmall, color = AppColors.textPrimary)
+        Icon(
+            appPainter("chevron"),
+            contentDescription = null,
+            Modifier.size(14.dp),
+            tint = AppColors.warning
+        )
+    }
+}

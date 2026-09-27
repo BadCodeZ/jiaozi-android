@@ -1,19 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lucide 图标 "book"（lucide-static v1.47.0，ISC 许可）
+  由 _ic/convert.py 自动转换；勿手改，重新生成请重跑该脚本。
+
+  🔴 2026-09-19 修正：原用 "book-open"（展开的书），其几何在 22~24dp 小尺寸下
+  被压成一个「方形旗帜」状色块，辨识度极差；改为 "book"（单本书，仅 1 条 path），
+  小尺寸下轮廓清晰。该图标同时服务 题库 / 教材 / 知识库 / 空态 等 20+ 处，改此一处即全局生效。
+  线性风格：fill=none / stroke-width=2 / round cap+join，颜色交由 Icon(tint=…) 运行时着色。
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M6.5,4 h11 a2,2 0 0,1 2,2 v12 a2,2 0 0,1 -2,2 h-11 a2,2 0 0,1 -2,2 v-12 a2,2 0 0,1 2,-2 z"
-        android:fillColor="@android:color/transparent"
+    <path
+        android:pathData="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"
+        android:fillColor="#00000000"
         android:strokeColor="#FF000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
-    <path android:pathData="M12 4 V20"
-        android:fillColor="@android:color/transparent"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
+        android:strokeLineJoin="round" />
 </vector>

@@ -4,10 +4,9 @@ import android.content.Context
 import com.jiaozi.sz.domain.MergeEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.jiaozi.sz.util.formatFileStamp
+import com.jiaozi.sz.util.parseFileStamp
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 本地备份管理器（P0 安全网，与 WebDAV 远程同步互不替代）。
@@ -36,10 +35,8 @@ object BackupManager {
         return dir
     }
 
-    private fun timeFormat() = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
-
     fun snapshotFile(context: Context, time: Long = System.currentTimeMillis()): File =
-        File(backupsDir(context), "$SNAPSHOT_PREFIX${timeFormat().format(Date(time))}$SNAPSHOT_SUFFIX")
+        File(backupsDir(context), "$SNAPSHOT_PREFIX${formatFileStamp(time)}$SNAPSHOT_SUFFIX")
 
     /** 写入一份本地快照（先导出信封再落盘），随后滚动裁剪到 [MAX_SNAPSHOTS] 份。 */
     suspend fun takeSnapshot(context: Context, repo: Repository): File = withContext(Dispatchers.IO) {
@@ -71,7 +68,7 @@ object BackupManager {
 
     private fun parseTime(name: String): Long? {
         val core = name.removePrefix(SNAPSHOT_PREFIX).removeSuffix(SNAPSHOT_SUFFIX)
-        return runCatching { timeFormat().parse(core)?.time }.getOrNull()
+        return parseFileStamp(core)
     }
 
     /** 仅保留最新 [MAX_SNAPSHOTS] 份，删除更早的。 */
