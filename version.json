@@ -1,7 +1,7 @@
 {
-  "versionCode": 79,
-  "versionName": "2.77",
-  "downloadUrl": "https://github.com/BadCodeZ/jiaozi-android/releases/tag/v2.77",
-  "changelog": "新增：更新检测（GitHub 联网版本比对）\n新增：pro功能开关（门禁预留）",
+  "versionCode": 82,
+  "versionName": "2.8.0",
+  "downloadUrl": "https://github.com/BadCodeZ/jiaozi-android/releases/tag/v2.8.0",
+  "changelog": "新增：按报考学段真拆包下载（科三 13 个同名分卷科拆为「初中/高中」两版，单学段独有科整包不拆，共 32 个远端文件）\n新增：下载时只需拉取本学段文件（初中 17 个 / 1.83MB，高中 17 个 / 1.85MB），不再下载全量\n新增：题库管理页学段选择器 + 「题库需更新」提示（切换学段后可一键按新学段重下）\n新增：跨学段残留自动清理（切换学段后旧学段专属文件自动移除，避免混装出题）\n优化：本地文件名恒定（ke3_meishu.json 等 19 个固定名），远端名与本地名解耦，学段切换零迁移成本\n沿用：V2.7.9 的按学段筛题、逐题学段标记、学段空状态提示、设置内「报考学段」二级页",
   "forceUpdate": false
 }
