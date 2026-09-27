@@ -42,8 +42,8 @@
 
 | 项目 | 说明 |
 |------|------|
-| 版本 | **V2.77**（内部版本号主称呼；此前对外称「正式版 V1.1 / 内部 V2.75」） |
-| 内置题量 | 3,342 道（覆盖科一/科二全章节 + 科三 17 个学科） |
+| 版本 | **V2.8.0**（内部版本号主称呼；此前对外称「正式版 V1.1 / 内部 V2.75」） |
+| 题库 | 3,342 道，覆盖科一/科二全章节 + 科三 17 个学科；**已外置**（`banks/`），首次使用按需下载 |
 | 安装包 | 通过 GitHub Release 分发（详见「下载与安装」） |
 | 运行环境 | Android 8.0 (API 26) 及以上 |
 | 网络依赖 | 核心功能全部离线可用，仅 AI 讲评和同步需联网 |
@@ -59,18 +59,51 @@
 
 ### 版本对比
 
-| 项目 | 正式版 V1 | 正式版 V1.1（本版本） |
-|------|-----------|------------------------|
-| 内部版本 | V2.35.5 | **V2.75** |
-| 安装包 | `JiaoziAPP v2.35.5.apk`（17.7 MB） | **`JiaoziAPP v2.75.apk`（18.3 MB）** |
-| 源码 | 未提供 | **完整 Kotlin 源码（61 个文件）** |
-| 发布时间 | 2026-08-16 | **2026-08-23** |
+| 项目 | 正式版 V1 | 正式版 V1.1 | 当前版本 |
+|------|-----------|-------------|----------|
+| 内部版本 | V2.35.5 | V2.75 | **V2.8.0** |
+| 安装包 | `JiaoziAPP v2.35.5.apk`（17.7 MB） | `JiaoziAPP v2.75.apk`（18.3 MB） | **`JiaoziAPP.apk`（18.3 MB，不含题库）** |
+| 源码 | 未提供 | 完整 Kotlin 源码（61 个文件） | **完整 Kotlin 源码（190 个源文件）** |
+| 发布时间 | 2026-08-16 | 2026-08-23 | **2026-09-27** |
 
-本版本相对 V1 经历了大量迭代演进，并首次开放完整 Android 源码，既用于开源分享，也作为源码备份。
+本版本相对 V2.77 为一次大规模更新，包含全应用界面重写、题库彻底外置与按报考学段真拆包。
 
 ---
 
-### 版本更新说明（V2.75 → V2.77）
+### 版本更新说明（V2.77 → V2.8.0）
+
+本版在上一发布节点 V2.77 基础上，主要变化如下：
+
+**一、全新界面（全应用重写）**
+- **统一的视觉语言**：五个主界面（今日 / 练习 / 题库 / 统计 / 我的）与全部二级页统一为同一套版面结构 —— 顶部沉浸式信息区 + 内容滚动区 + 常驻操作栏；配色收敛为克制的黑白灰加少量主色，图标统一替换为线性风格。
+- **顶部信息区**：各页顶部信息区改为沉浸式通栏，重要数据（今日进度、练习统计、题量分布等）集中在顶部一眼可见。
+- **卡片与列表统一**：卡片圆角、间距、分隔线、行高按同一套规范重排；长列表改为按需渲染，滚动更顺滑。
+- **加载与空状态**：新增统一加载骨架屏与空状态引导（含首次使用上手提示）。
+- **悬浮返回键**：二级页返回键统一为左上角圆形悬浮按钮，不遮挡内容。
+- **设置页重构**：设置主页改为分类导航列表，各分组拆分为独立二级页（外观 / 灵动岛 / 学习目标 / 报考科目 / 报考学段 / 备份 / WebDAV / AI 服务 / 使用引导 等）。
+
+**二、题库彻底外置**
+- 题库不再随安装包发布，改为按需下载，安装包体积明显减小；首次启动引导前往题库下载页。
+- 新增题库管理页：可查看各科目下载状态、单独下载或删除、一键补全缺失项。
+
+**三、按报考学段真拆包**
+- 科目三按报考学段拆包，只下载本学段文件（初中约 1.8 MB / 高中约 1.9 MB），不再下载全量。
+- 切换报考学段后旧学段专属文件自动清理，避免混装出题；本地文件名固定，切换零迁移成本。
+
+**四、按报考学段筛题**
+- 练习与模考按当前报考学段筛题（本学段题目 + 通用题目）；科目一、科目二两科通用，科目三按学科分别适用。
+- 设置内新增「报考学段」二级页，练习设置页亦可直接切换；某学段暂无题目时给出明确提示。
+
+**五、其他改进**
+- 全局搜索可直达知识库 / 备课 / 课标 / 教材 / 收集箱的具体条目并高亮定位。
+- AI 助手清空对话、教案存为模板重名等操作补充二次确认与提示。
+- 修正题库下载地址域名拼写（`jiazi-android` → `jiaozi-android`）。
+
+> 说明：题库总量不变（3,342 道），已有学习数据完整保留；升级后题库需按引导重新下载一次。本版内部版本号为 **V2.8.0**。
+
+---
+
+### 历史版本更新说明（V2.75 → V2.77）
 
 本版在上一对外发布节点（此前对外称「正式版 V1.1 / 内部 V2.75」）基础上，主要优化与新增如下：
 
@@ -84,13 +117,13 @@
 **工程与构建**
 - 采用真工程直接构建（零复制增量编译），构建更稳定、产物可直接分发；Gradle Wrapper 锁定 8.9，clone 后 `./gradlew` 即可构建。
 
-> 说明：内部版本号自 V2.x 起持续迭代，V2.75 为上一对外发布节点；本版内部版本号为 **V2.77**。
+> 说明：内部版本号自 V2.x 起持续迭代，V2.75 为上一对外发布节点；该版内部版本号为 **V2.77**。
 
 ### 版本命名规则（重要变更）
 
-**自本版起，版本统一以「内部版本号」（如 `V2.77`）为主称呼，不再使用「正式版 V1.x」这类对外称呼。**
+**自 V2.77 起，版本统一以「内部版本号」（如 `V2.8.0`）为主称呼，不再使用「正式版 V1.x」这类对外称呼。**
 
-- 对外发布、Release Tag、应用内更新检测均使用内部版本号（例：`v2.77`）。
+- 对外发布、Release Tag、应用内更新检测均使用内部版本号（例：`v2.8.0`）。
 - 历史文档中出现的「正式版 V1 / V1.1（内部 V2.35.5 / V2.75）」为早期称呼，仅作历史记录保留，不作为今后命名依据。
 
 ---
@@ -131,7 +164,7 @@
 
 - **灵动岛（上岛）**：系统级悬浮胶囊，常驻顶部显示学习统计（实验性特性，部分功能尚在完善中）
 - **桌面组件**：系统原生小组件，支持添加到桌面（实验性特性，部分功能尚在完善中）
-- **主题系统**：浅色/深色/跟随系统；美术主题包（墨绿/小米蓝）；字体大小（sm/md/lg/xl）；跟随系统壁纸取色
+- **主题系统**：浅色 / 深色 / 跟随系统；主色为克制的企鹅蓝，可切换字体大小（sm/md/lg/xl）
 
 #### 多端同步
 
@@ -153,14 +186,16 @@
 
 #### 下载
 
-从 [Releases 页面](https://github.com/BadCodeZ/jiaozi-android/releases) 下载最新 APK 安装包。
+从 [Releases 页面](https://github.com/BadCodeZ/jiaozi-android/releases) 下载最新 APK 安装包（当前版本 [v2.8.0](https://github.com/BadCodeZ/jiaozi-android/releases/tag/v2.8.0)）。
+
+> 自 V2.8.0 起，题库不再内置于安装包，首次启动后按引导在「题库管理」中下载所需科目；科目三可仅下载当前报考学段。
 
 #### 安装步骤
 
 1. 将 APK 传输到安卓手机（微信文件传输 / USB 连接 / 网盘均可）
 2. 在手机上点击 APK 文件，按系统提示开启"允许安装未知来源应用"
 3. 安装完成后桌面出现"综合教资备考平台"图标
-4. 首次启动设置目标考试日，即可开始使用
+4. 首次启动设置目标考试日，按引导下载题库，即可开始使用
 
 #### 版本更新
 
@@ -199,9 +234,9 @@ cd jiaozi-android
 
 #### 注意事项
 
-- `app/build.gradle` 中 `versionCode=79 / versionName=2.77`（与发布版本一致），发布包文件名为 `JiaoziAPP.apk`，版本由内部逻辑确定
+- `app/build.gradle` 中 `versionCode=82 / versionName=2.8.0`（与发布版本一致），发布包文件名为 `JiaoziAPP.apk`，版本由内部逻辑确定
 - 测试用 `debug.keystore` 不随源码分发，需自行生成或改用官方签名
-- 题库与知识库内置在 `assets/`，不随同步包导出
+- 题库已**外置**至仓库根目录 `banks/`（19 个分卷文件，共 3,342 题），运行时按需下载到本地，不随同步包导出；`assets/` 仅保留知识库与考纲等静态数据
 
 ---
 
@@ -266,13 +301,13 @@ cd jiaozi-android
 | 项目 | 值 |
 |------|------|
 | 安装包 | `JiaoziAPP.apk` |
-| 大小 | 19.79 MB |
-| MD5 | `37d755d5df21736aa1091e55feca09f3` |
-| 内部版本 | V2.77 |
+| 大小 | 18.25 MB（题库外置后） |
+| MD5 | `875cea1c99d8504dba12a04beff9d2c3` |
+| 内部版本 | V2.8.0 |
 | 包名 | com.jiaozi.sz |
-| 内置题量 | 3,342 道 |
+| 题库总量 | 3,342 道（外置于 `banks/`，按需下载） |
 | 科三学科 | 17 个 |
-| 源码文件数 | 61 个 Kotlin 文件 |
+| 源码文件数 | 190 个源文件 |
 | 最低系统 | Android 8.0 (API 26) |
 | 目标系统 | Android 14 (API 34) |
 | 数据存储 | Room 数据库（Android 沙箱） |
@@ -294,8 +329,9 @@ cd jiaozi-android
 
 #### 安装与运行
 
-- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `ad3995bc3fe35b45b86bc4707a3c074f`，与发布一致即未被篡改
-- **白屏/卡在启动**：首次启动需从内置题库建索引（约 1-2 秒），属正常；若长时间空白，杀进程重开
+- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `875cea1c99d8504dba12a04beff9d2c3`，与发布一致即未被篡改
+- **白屏/卡在启动**：首次启动需初始化本地数据库（约 1-2 秒），属正常；若长时间空白，杀进程重开
+- **题库是空的 / 无法练习**：自 V2.8.0 起题库外置，需在「题库管理」中下载对应科目后才可练习；科目三请先设置报考学段再下载
 - **鸿蒙系统兼容**：部分国产 ROM 需手动授权安装权限
 
 #### 数据与备份
@@ -315,6 +351,23 @@ cd jiaozi-android
 ---
 
 ### 版本历史
+
+#### V2.8.0（versionCode 82）— 全应用界面重写 · 题库外置 · 按学段真拆包
+
+- **界面重写**：全应用统一版面结构（顶部沉浸信息区 + 内容滚动区 + 常驻操作栏），五个主界面与全部二级页视觉语言一致
+- **设置页重构**：改为分类导航列表，拆分为外观 / 灵动岛 / 学习目标 / 报考科目 / 报考学段 / 备份 / WebDAV / AI 服务 / 使用引导等独立二级页
+- **题库外置**：题库不再随包发布，改为按需下载；新增题库管理页（查看下载状态、单独下载或删除、一键补全缺失项）
+- **按学段真拆包**：科目三按报考学段拆分文件，只下载本学段（初中约 1.8 MB / 高中约 1.9 MB）；切换学段自动清理旧学段文件
+- **按学段筛题**：练习与模考按当前报考学段筛题（本学段题目 + 通用题目），科目一、科目二两科通用
+- **细节改进**：加载骨架屏与空状态引导、二级页悬浮返回键、搜索直达高亮定位、关键操作二次确认
+- 源码 190 个文件，题库 3,342 道（外置于仓库根目录 `banks/`）
+
+#### V2.77（versionCode 81）— 应用内更新检测
+
+- 新增「我的 → 关于」检查更新，联网比对 `version.json` 并在发现新版本时弹窗引导下载
+- 新增 Pro 功能开关（门禁预留，未接入付费逻辑）
+- 题库修订：6 道题目的答案/解析修正，其余题目逐字不变，题量仍为 3,342 道
+- 采用真工程直接构建（零复制增量编译），Gradle Wrapper 锁定 8.9
 
 #### V1.1（V2.75）— 开源版
 
@@ -375,13 +428,13 @@ limitations under the License.
 
 | Item | Value |
 |------|-------|
-| Release | V2.77 |
-| Built-in Questions | 3,342 (covering Subject 1/2 all chapters + Subject 3 across 17 subjects) |
-| Package | `JiaoziAPP.apk` (19.79 MB) |
-| File Integrity | MD5: `37d755d5df21736aa1091e55feca09f3` |
+| Release | V2.8.0 |
+| Questions | 3,342 (Subject 1/2 all chapters + Subject 3 across 17 subjects), **externalized** in `banks/` and downloaded on demand |
+| Package | `JiaoziAPP.apk` (18.25 MB, without question banks) |
+| File Integrity | MD5: `875cea1c99d8504dba12a04beff9d2c3` |
 | Min OS | Android 8.0 (API 26) |
 | Network | Core features are fully offline; only AI commentary and sync require internet |
-| Source Code | 61 Kotlin files, fully open source |
+| Source Code | 190 source files, fully open source |
 | Build Tools | Gradle 8.9 + AGP 8.4.2 + Kotlin 1.9.24 |
 | Author | BadCodeZ |
 
@@ -403,7 +456,7 @@ limitations under the License.
 - **Skill 3 Training**: Teaching design exercises with 6-dimension scoring
 - **Living Island**: System-level floating capsule showing real-time study stats (experimental, in development)
 - **Home Screen Widget**: Native widget support (experimental, in development)
-- **Theme System**: Light/Dark/System theme, accent color packs, adjustable font sizes
+- **Theme System**: Light/Dark/System theme with a restrained penguin-blue accent, adjustable font sizes
 - **WebDAV Sync**: Encrypted cross-device sync with the web version (AES-GCM)
 
 ### Download & Install
@@ -440,6 +493,21 @@ cd jiaozi-android
 | Target SDK | 34 (Android 14) |
 
 ### Version History
+
+#### V2.8.0 — Full UI Rewrite · Externalized Question Banks · Stage-split Downloads
+
+- Complete UI rewrite: unified page structure across all screens, restrained monochrome palette plus a single accent color, linear icon set
+- Settings rebuilt as a categorized navigation list with dedicated sub-pages
+- Question banks moved out of the APK and downloaded on demand, plus a new bank management screen
+- Subject 3 banks split by exam stage (junior/senior), only the relevant file is downloaded
+- Practice and mock exams filter questions by the selected exam stage
+- 190 source files; 3,342 questions shipped in `banks/`
+
+#### V2.77 — In-app Update Check
+
+- Update check on the About screen, comparing against the remote `version.json`
+- Pro feature flag (gate reserved, no payment logic yet)
+- Question bank revision: answers/explanations of 6 items corrected, total unchanged at 3,342
 
 #### V1.1 (V2.75) — Open Source Release
 
