@@ -14,7 +14,7 @@ import java.net.URL
  * 题库远程拉取（2026-09-28 题库外置 · **学科 × 学段 双层拆分**）：从 GitHub 仓库 raw 文件下载科目包。
  *
  * 复用现有 [WebDavClient] 的零依赖思路（HttpURLConnection GET，不引入 Retrofit/OkHttp），
- * 保证离线仍可构建。目标仓库：[BadCodeZ/jiaozi-android]，分支 `main`。
+ * 保证离线仍可构建。目标仓库：[BadCodeZ/jiaozi-android]（题库与源码同仓），分支 `main`。
  *
  * 远端文件集共 **32 个**（见 `工具/split_bank_layer.py`）：
  * - 科目一《综合素质》→ `banks/ke1.json`；科目二《教育知识与能力》→ `banks/ke2.json`

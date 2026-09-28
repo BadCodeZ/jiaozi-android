@@ -30,7 +30,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
@@ -164,7 +168,17 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
     val favIds by vm.favIds.collectAsStateWithLifecycle()
     val isFav = q.id in favIds
 
-    Column(Modifier.fillMaxSize().background(AppColors.bg).displayCutoutPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    // 🔴 2026-09-28 顶部留白修复（小米13 真机实证）：原 `.displayCutoutPadding()` 会给顶部再加一次
+    //   cutout inset（该机 `mDisplayCutout insets=Rect(0,121,0,0)`，与 `statusBars frame=[0,0][1080,121]`
+    //   **等高等值**），而 AppNav 的 Scaffold 顶栏已按 `statusBars.union(displayCutout)` 预留过同一高度
+    //   ⇒ cutout 被重复计算，顶栏下方凭空多出 44dp 空白（+16dp 内边距 ≈ 60dp）。
+    //   改为**仅水平方向**取 cutout：竖屏（孔在顶部）水平 inset = 0 ⇒ 不再重复；横屏侧边孔仍受保护。
+    Column(
+        Modifier.fillMaxSize().background(AppColors.bg)
+            .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Horizontal))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
         // 🔴 2026-09-24 顶栏收口（杰哥：『调整练习界面的其他功能键的屏幕占比，做题才是关键』）
         //   背景：原底部「更多 ··· / 收藏 / 草稿」整条工具条（48dp 控件 + 14dp 间距 ≈ 62dp）常驻屏底，
         //        但实测其中【收藏】≡ ⋯菜单「收藏本题」、【草稿】≡ ⋯菜单「存到收集箱」——两键两功能，纯冗余。

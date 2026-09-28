@@ -181,7 +181,7 @@ fun BankDownloadScreen(nav: NavHostController) {
 
             if (stage.isEmpty()) {
                 Text(
-                    "尚未选择学段。未设置时下载全部题目（含初高中两版），建议先选定学段以节省流量。",
+                    "尚未选择学段：学科题库已按「初中 / 高中」拆成两个版本，需先选定报考学段才能下载对应题目。",
                     style = MaterialTheme.typography.labelSmall,
                     color = AppColors.warning
                 )

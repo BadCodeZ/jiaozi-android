@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,49 +93,65 @@ fun BankManageScreen(nav: NavHostController) {
     var batchBusy by remember { mutableStateOf(false) }
     // 学段切换后重新计算「需更新」判定
     var outdated by remember(stage) { mutableStateOf(appVm.bankStageOutdated()) }
+    // ── 未选学段时的下载引导（2026-09-28 修复「未选学段 ⇒ 学科题库静默下载失败」）──
+    // 根因：`BankStore.remoteCode(code, null)` 对同名分卷科回退到**不存在的全量名**
+    //       （远端只有 `ke3_<x>_junior.json` / `ke3_<x>_senior.json`，并无 `ke3_<x>.json`）
+    //       ⇒ HTTP 404 ⇒ 该批下载全部失败，且界面只显示「还差 N 个」看不出原因。
+    // 处置：凡含「同名分卷科」的下载，未选学段时先弹学段选择框，**选完自动续跑**，不再静默失败。
+    var askStage by remember { mutableStateOf(false) }
+    var pendingCodes by remember { mutableStateOf<List<String>?>(null) }
+    var pendingForce by remember { mutableStateOf(false) }
 
     LaunchedEffect(refreshKey) { userQs = repo.allUserQuestions() }
 
     val doneCount = packs.count { BankStore.isDownloaded(ctx, it.code) }
 
-    /** 单包下载；force=true 时忽略「已下载」直接重拉。落盘后按当前学段刷新判定。 */
-    fun downloadOne(code: String, force: Boolean) {
-        if (batchBusy || status[code] == "doing") return
-        scope.launch {
-            if (!force && BankStore.isDownloaded(ctx, code)) return@launch
-            status = status + (code to "doing")
-            val qs = BankRemote.fetchForStage(code, chosenStage)
-            if (qs != null) {
-                BankStore.persistQuestions(ctx, code, qs)
-                status = status + (code to "done")
-                repo.reloadBank(BankStore.loadLocal(ctx))
-                if (chosenStage != null) appVm.setBankDownloadStage(chosenStage)
-                outdated = appVm.bankStageOutdated()
-            } else {
-                status = status + (code to "fail")
-            }
-        }
-    }
+    /** 该包是否「必须先确定学段」才能定位远端文件（同名分卷科：初中/高中各一版） */
+    fun needsStage(code: String): Boolean = BankStore.packMode(code) == "per-question"
 
-    /** 批量补齐：只拉尚未下载的包（已下载的跳过），完成后统一重载一次题库 */
-    fun downloadMissing(targets: List<BankPack>) {
-        val missing = targets.filter { !BankStore.isDownloaded(ctx, it.code) }.map { it.code }
-        if (missing.isEmpty() || batchBusy) return
+    /** 实际执行下载（学段已定）：逐包拉取，结束时统一重载一次题库 */
+    fun runDownload(codes: List<String>, force: Boolean, forStage: String?) {
+        if (codes.isEmpty() || batchBusy) return
         batchBusy = true
         scope.launch {
-            for (code in missing) {
+            for (code in codes) {
                 status = status + (code to "doing")
-                val qs = BankRemote.fetchForStage(code, chosenStage)
+                val qs = BankRemote.fetchForStage(code, forStage)
                 status = status + (code to if (qs != null) {
                     BankStore.persistQuestions(ctx, code, qs); "done"
                 } else "fail")
             }
             repo.reloadBank(BankStore.loadLocal(ctx))
-            if (chosenStage != null) appVm.setBankDownloadStage(chosenStage)
+            if (forStage != null) appVm.setBankDownloadStage(forStage)
             outdated = appVm.bankStageOutdated()
             batchBusy = false
         }
     }
+
+    /**
+     * 下载统一入口（单包 / 批量共用）：
+     * ① 先剔除已下载项（`force = false` 时）；
+     * ② 若目标含**同名分卷科**而当前**未选报考学段** ⇒ 弹学段选择框并挂起本次目标，
+     *    选完由 [resolveStage] 自动续跑（用户不必再点一次）。
+     */
+    fun requestDownload(codes: List<String>, force: Boolean) {
+        if (codes.isEmpty() || batchBusy) return
+        val missing = if (force) codes else codes.filter { !BankStore.isDownloaded(ctx, it) }
+        if (missing.isEmpty()) return
+        if (chosenStage == null && missing.any { needsStage(it) }) {
+            pendingCodes = missing
+            pendingForce = force
+            askStage = true
+            return
+        }
+        runDownload(missing, force, chosenStage)
+    }
+
+    /** 单包下载；force=true 时忽略「已下载」直接重拉 */
+    fun downloadOne(code: String, force: Boolean) = requestDownload(listOf(code), force)
+
+    /** 批量补齐：只拉尚未下载的包（已下载的跳过），完成后统一重载一次题库 */
+    fun downloadMissing(targets: List<BankPack>) = requestDownload(targets.map { it.code }, force = false)
 
     /**
      * 按当前学段**全部重下**（学段切换后的「一键更新题库」）：
@@ -168,10 +186,44 @@ fun BankManageScreen(nav: NavHostController) {
         appVm.setExamStage(newStage)
     }
 
+    /**
+     * 学段选择框确认：写回学段后，**自动续跑**此前被 [requestDownload] 挂起的下载批次。
+     * 语言刻意平实（面向备考用户），不出现「同名分卷科」等实现术语。
+     */
+    fun resolveStage(s: String) {
+        askStage = false
+        val codes = pendingCodes ?: emptyList()
+        val force = pendingForce
+        pendingCodes = null
+        pendingForce = false
+        switchStage(s)
+        if (codes.isNotEmpty()) runDownload(codes, force, s)
+    }
+
     fun removePack(code: String) {
         BankStore.deleteLocal(ctx, code)
         scope.launch { repo.reloadBank(BankStore.loadLocal(ctx)) }
         status = status - code
+    }
+
+    // 未选学段 ⇒ 学科题库无法定位远端版本：先引导选择，选完自动续下（不再静默失败）
+    if (askStage) {
+        AlertDialog(
+            onDismissRequest = { askStage = false; pendingCodes = null; pendingForce = false },
+            title = { Text("先选择报考学段") },
+            text = {
+                Text(
+                    "《学科知识与教学能力》各科目分「初中 / 高中」两个版本，需先确定报考学段才能下载。"
+                        + "选择后会自动开始下载。"
+                )
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(onClick = { resolveStage(BankStore.STAGE_JUNIOR) }) { Text("初中") }
+                    TextButton(onClick = { resolveStage(BankStore.STAGE_SENIOR) }) { Text("高中") }
+                }
+            }
+        )
     }
 
     Column(Modifier.fillMaxSize().background(AppColors.bg)) {
@@ -212,6 +264,7 @@ fun BankManageScreen(nav: NavHostController) {
                     done = doneCount,
                     total = total,
                     busy = batchBusy,
+                    stageChosen = chosenStage != null,
                     onFillMissing = { downloadMissing(packs) }
                 )
             }
@@ -305,17 +358,41 @@ fun BankManageScreen(nav: NavHostController) {
 /**
  * 学段选择器（管理页顶部）：左右两枚等宽 chip。
  * 切换即写回 [MetaKeys.EXAM_STAGE]，列表随之过滤（独有学科出现/消失）。
+ *
+ * 🔴 2026-09-28：`stage` 为空（从未选择）时整卡转**警示态**并加「未选择」小标 —— 此前无任何
+ *   未选提示，用户看不出「为什么学科题库点下载没反应」，是本轮真机缺陷的直接成因之一。
  */
 @Composable
 private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit) {
+    val unset = stage.isEmpty()
     Card(
         Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = if (unset) AppColors.warningBg else MaterialTheme.colorScheme.surface
+        ),
         shape = RoundedCornerShape(14.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("报考学段", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("报考学段", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (unset) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(AppColors.warning.copy(alpha = 0.16f))
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            "未选择",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AppColors.warning,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BankStore.STAGE_OPTIONS.forEach { opt ->
                     val sel = stage == opt
@@ -336,9 +413,10 @@ private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit
                 }
             }
             Text(
-                "切换学段后，初高中同名学科会显示对应版本；独有学科随学段出现或隐藏。",
+                if (unset) "还没选报考学段：学科题库分「初中 / 高中」两个版本，需先选定才能下载对应题目。"
+                else "切换学段后，初高中同名学科会显示对应版本；独有学科随学段出现或隐藏。",
                 style = MaterialTheme.typography.labelSmall,
-                color = AppColors.textSecondary
+                color = if (unset) AppColors.warning else AppColors.textSecondary
             )
         }
     }
@@ -421,11 +499,19 @@ private fun TinyPill(
 }
 
 /**
- * 顶部概览卡：全局「已下载 n/19」+ 一键补齐缺失。
+ * 顶部概览卡：全局「已下载 n/N」+ 一键补齐缺失。
  * 全部就绪时右侧动作位收起，仅留状态文案，避免出现无效按钮。
+ * 🔴 未选报考学段时（[stageChosen] = false），副文案改为**明确指引**：
+ *   学科题库分初高中两版，必须先定学段；点「一键补齐缺失」会先弹学段选择框。
  */
 @Composable
-private fun OverviewCard(done: Int, total: Int, busy: Boolean, onFillMissing: () -> Unit) {
+private fun OverviewCard(
+    done: Int,
+    total: Int,
+    busy: Boolean,
+    stageChosen: Boolean,
+    onFillMissing: () -> Unit
+) {
     val allDone = done >= total
     Card(
         Modifier.fillMaxWidth(),
@@ -447,6 +533,7 @@ private fun OverviewCard(done: Int, total: Int, busy: Boolean, onFillMissing: ()
                     when {
                         busy -> "正在补齐中…"
                         allDone -> "题库已就绪，可直接开始练习"
+                        !stageChosen -> "未选报考学段：学科题库分初高中两版，需先选学段"
                         else -> "还差 ${total - done} 个，可一键补齐"
                     },
                     style = MaterialTheme.typography.labelSmall,
