@@ -55,7 +55,7 @@
 
 - **网页端**：`jiazi-practice-platform` — 在线版教资备考工作台，与安卓端数据互通
   - 仓库：https://github.com/BadCodeZ/jiazi-practice-platform
-  - 在线使用：https://badcodez.github.io/Jiazi-Practice-Platform/
+  - 在线使用：https://badcodez.github.io/Jiaozi-Practice-Platform/
 
 ### 版本对比
 
@@ -442,7 +442,7 @@ limitations under the License.
 
 - **Web Version**: `jiazi-practice-platform` — Online teacher certification workbench, data-compatible with this Android app
   - Repository: https://github.com/BadCodeZ/jiazi-practice-platform
-  - Live Demo: https://badcodez.github.io/Jiazi-Practice-Platform/
+  - Live Demo: https://badcodez.github.io/Jiaozi-Practice-Platform/
 
 ### Key Features
 
@@ -537,4 +537,4 @@ Licensed under the Apache License, Version 2.0.
 作者：BadCodeZ  
 仓库：https://github.com/BadCodeZ/jiaozi-android  
 相关网页端：https://github.com/BadCodeZ/jiazi-practice-platform  
-在线使用：https://badcodez.github.io/Jiazi-Practice-Platform/
+在线使用：https://badcodez.github.io/Jiaozi-Practice-Platform/
