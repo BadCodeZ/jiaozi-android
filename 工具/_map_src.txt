@@ -1,0 +1,4 @@
+app/src/main/java/com/jiaozi/sz/ui/screens/practice/PracticeSession.kt	app/src/main/java/com/jiaozi/sz/ui/screens/practice/PracticeSession.kt
+app/src/main/java/com/jiaozi/sz/ui/screens/BankManageScreen.kt	app/src/main/java/com/jiaozi/sz/ui/screens/BankManageScreen.kt
+app/src/main/java/com/jiaozi/sz/ui/screens/BankDownloadScreen.kt	app/src/main/java/com/jiaozi/sz/ui/screens/BankDownloadScreen.kt
+app/src/main/java/com/jiaozi/sz/data/remote/BankRemote.kt	app/src/main/java/com/jiaozi/sz/data/remote/BankRemote.kt
