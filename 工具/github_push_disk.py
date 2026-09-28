@@ -112,11 +112,12 @@ print("[1] remote_head=%s base_tree=%s" % (remote_head[:12], base_tree[:12]))
 entries = []
 with open(MAPFILE, "r", encoding="utf-8") as f:
     for line in f:
-        line = line.rstrip("\n")
+        # 兼容 CRLF 映射文件：必须同时剥离 \r，否则 \r 会被带进仓库目标路径
+        line = line.rstrip("\r\n")
         if not line.strip():
             continue
         lp, rp = line.split("\t")
-        lp = lp.replace("\\", "/"); rp = rp.replace("\\", "/")
+        lp = lp.replace("\\", "/").strip(); rp = rp.replace("\\", "/").strip()
         full = os.path.join(LOCALROOT, lp)
         if not os.path.isfile(full):
             print("    [跳过] 本地缺失: %s" % lp)
