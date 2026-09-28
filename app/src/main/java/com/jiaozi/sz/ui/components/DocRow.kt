@@ -60,7 +60,7 @@ fun DocRow(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = if (highlighted) AppColors.blueBg else MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(

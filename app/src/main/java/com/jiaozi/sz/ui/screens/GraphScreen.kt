@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.data.BankStore
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.HeroHeader
@@ -236,7 +237,8 @@ fun GraphScreen(nav: NavHostController) {
         ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = subjectChips)
 
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
             Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceEvenly) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("${chapters.size}", style = MaterialTheme.typography.titleMedium)
@@ -393,7 +395,7 @@ fun GraphScreen(nav: NavHostController) {
                         .fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                     shape = RoundedCornerShape(20.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
                 ) {
                     Row(Modifier.fillMaxWidth().padding(16.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -441,8 +443,8 @@ fun GraphScreen(nav: NavHostController) {
                 val label = if (subj == "科三" && disc.isNotBlank()) "${c.name}($disc)" else c.name
                 Card(
                     Modifier.fillMaxWidth().clickable { selChapter = if (selChapter == c.name) null else c.name },
-                    colors = CardDefaults.cardColors(containerColor = if (selChapter == c.name) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+                    colors = CardDefaults.cardColors(containerColor = if (selChapter == c.name) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Canvas(Modifier.size(12.dp)) {
@@ -468,7 +470,8 @@ fun GraphScreen(nav: NavHostController) {
             val relK = knowledgeForSubject.filter { k ->
                 k.tags.contains(sc) || "${k.cat} ${k.title} ${k.content}".contains(sc)
             }
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.padding(12.dp), Arrangement.spacedBy(6.dp)) {
                     Text("枢纽详情：${if (subj == "科三" && disc.isNotBlank()) "$sc($disc)" else sc}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(
@@ -496,7 +499,8 @@ fun GraphScreen(nav: NavHostController) {
         if (knowledgeForSubject.isEmpty() && knowledgeOther.isEmpty()) {
             EmptyHint("book", "暂无关联知识卡", "该科目暂未关联知识卡，可去知识库补充。")
         } else {
-            Card(Modifier.fillMaxWidth()) {
+            Card(Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     knowledgeGrouped.entries.forEach { (cat, list) ->
                         Text(cat, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

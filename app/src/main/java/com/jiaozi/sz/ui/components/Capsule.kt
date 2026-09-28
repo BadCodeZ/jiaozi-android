@@ -44,7 +44,8 @@ fun Capsule(
 ) {
     Row(
         modifier = modifier
-            .shadow(10.dp, RoundedCornerShape(50))
+            // 🔴 2026-09-28：阴影 10dp → NavTokens.Elevation(8dp)，全站悬浮件对齐同一 token
+            .shadow(NavTokens.Elevation, RoundedCornerShape(50))
             .clip(RoundedCornerShape(50))
             .background(androidx.compose.ui.graphics.Color(0xFF1A1A1A).copy(alpha = 0.92f))
             .clickable { onClick() }

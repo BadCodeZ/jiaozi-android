@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -287,7 +288,7 @@ fun CurricScreen(nav: NavHostController) {
                         onClick = { picker.launch(arrayOf("application/pdf", "text/plain", "text/markdown", "text/x-markdown")) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = AppColors.blueBg),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(

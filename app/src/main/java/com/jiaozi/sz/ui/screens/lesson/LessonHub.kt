@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens.lesson
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.EmptyHint
@@ -196,14 +197,14 @@ internal fun LessonHub(
 
         // ── 快捷操作：模板库 + 新建教案（文案按高保真稿 2026-09-21）──
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Card(Modifier.weight(1f).clickable { onTemplates() }, colors = CardDefaults.cardColors(containerColor = AppColors.greenBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.weight(1f).clickable { onTemplates() }, colors = CardDefaults.cardColors(containerColor = AppColors.greenBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(appPainter("bars"), contentDescription = null, tint = AppColors.success, modifier = Modifier.size(24.dp))
                     Text("模板库", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppColors.success)
                     Text("海量优质模板，快速套用", style = MaterialTheme.typography.bodySmall, color = AppColors.success, fontSize = 11.sp)
                 }
             }
-            Card(Modifier.weight(1f).clickable { onNew() }, colors = CardDefaults.cardColors(containerColor = AppColors.purpleBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.weight(1f).clickable { onNew() }, colors = CardDefaults.cardColors(containerColor = AppColors.purpleBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(appPainter("plus"), contentDescription = null, tint = AppColors.purple, modifier = Modifier.size(24.dp))
                     Text("新建教案", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppColors.purple)
@@ -238,7 +239,7 @@ internal fun LessonHub(
                     .bringIntoViewRequester(bri),
                 colors = CardDefaults.cardColors(containerColor = if (hl) AppColors.blueBg else MaterialTheme.colorScheme.surfaceContainer),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
             ) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), Arrangement.spacedBy(12.dp), Alignment.Top) {
                     // 封面图占位

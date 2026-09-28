@@ -58,8 +58,8 @@ fun SettingsSection(
         )
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-            shape = MaterialTheme.shapes.medium
-        ) {
+            shape = MaterialTheme.shapes.medium,
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
             Column(content = content)
         }
     }

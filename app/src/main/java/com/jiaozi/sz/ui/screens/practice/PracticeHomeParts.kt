@@ -26,6 +26,7 @@ package com.jiaozi.sz.ui.screens
  * MockExamButton / ResumeCard）——其形态已被 `NavRowCard` 取代。
  */
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.ChapterRow
@@ -442,7 +443,7 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = AppColors.purpleBg),
                                 shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
                             ) {
                                 Row(Modifier.fillMaxWidth().padding(12.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                                     Text(cause, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)

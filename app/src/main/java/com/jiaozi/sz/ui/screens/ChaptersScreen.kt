@@ -3,6 +3,7 @@ package com.jiaozi.sz.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import com.jiaozi.sz.data.BankStore
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.hubDragToScroll
@@ -169,7 +170,7 @@ fun ChaptersScreen(nav: NavHostController) {
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = AppColors.warningBg),
                 shape = RoundedCornerShape(14.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
             ) {
                 Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("数据自检", style = MaterialTheme.typography.labelMedium, color = AppColors.warning, fontWeight = FontWeight.SemiBold)
@@ -228,7 +229,7 @@ fun ChaptersScreen(nav: NavHostController) {
                         },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                         shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
@@ -363,7 +364,7 @@ fun ChaptersScreen(nav: NavHostController) {
                                 Text("${"%.1f".format(weight)}×", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                             }
                             Slider(value = weight, onValueChange = { weight = it }, valueRange = 0f..2f, steps = 39)
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text("数据自检", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
                                     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween) {

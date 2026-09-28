@@ -1,4 +1,5 @@
 package com.jiaozi.sz.ui.screens
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.IconBadge
@@ -248,8 +249,8 @@ fun AiChatScreen(nav: NavHostController) {
                         Column(Modifier.fillMaxWidth(0.86f), Arrangement.spacedBy(10.dp)) {
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                                modifier = Modifier.fillMaxWidth(),
+                                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                                 Text(
                                     "你好，我是你的备考助手\n我可以帮你解答问题、解析题目、总结知识点，也可以根据题目进行针对性追问。",
                                     style = MaterialTheme.typography.bodyMedium,
@@ -355,8 +356,8 @@ private fun ChatBubble(m: AiChatEntity) {
             colors = CardDefaults.cardColors(
                 containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
             ),
-            modifier = Modifier.fillMaxWidth(0.78f)
-        ) {
+            modifier = Modifier.fillMaxWidth(0.78f),
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
             Text(m.content, style = MaterialTheme.typography.bodyMedium, fontSize = 14.sp, modifier = Modifier.padding(12.dp))
         }
         if (isUser) {

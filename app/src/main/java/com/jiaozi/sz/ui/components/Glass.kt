@@ -26,6 +26,23 @@ object NavTokens {
 }
 
 /**
+ * 卡片阴影 token（2026-09-28 新增）。
+ *
+ * 背景：此前全站约 40 处 `Card` 用 `cardElevation(defaultElevation = 0.dp)`，
+ * 靠「卡片底色（surfaceContainer 纯白）与页面底（background 灰）的色差」区分层级。
+ * 杰哥 2026-09-28 裁定「**卡片统一加轻阴影**」⇒ 收敛为本 token，与悬浮件
+ * （[NavTokens.Elevation] = 8dp）拉开**两级层级**：
+ *   卡片级 2dp（轻贴底） < 悬浮件级 8dp（明显浮起）。
+ *
+ * 用法：`elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)`。
+ * ⚠️ 仅「卡片」语义用它；底部导航 / 悬浮返回件 / 上岛胶囊等**浮起件**仍用 [NavTokens.Elevation]。
+ */
+object CardTokens {
+    /** 卡片统一轻阴影（与悬浮件 8dp 拉开层级） */
+    val Elevation: Dp = 2.dp
+}
+
+/**
  * 轻量悬浮导航容器：实色底 + 圆角药丸 + 柔和投影。
  * 直接用于底部导航栏、设置面板等需要"浮起"的组件。
  *

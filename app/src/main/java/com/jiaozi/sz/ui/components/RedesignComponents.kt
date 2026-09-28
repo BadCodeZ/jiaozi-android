@@ -310,7 +310,7 @@ fun StatCard(
         Card(
             modifier = modifier,
             colors = CardDefaults.cardColors(containerColor = containerColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
             shape = RoundedCornerShape(20.dp)
         ) {
             Column(
@@ -522,7 +522,7 @@ fun QuickActionCard(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = actionBgColor(actionKey)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(
@@ -591,7 +591,7 @@ fun ChapterRow(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -732,7 +732,7 @@ fun NavRowCard(
         modifier = modifier.fillMaxWidth().then(press.modifier),
         interactionSource = press.interactionSource,
         colors = CardDefaults.cardColors(containerColor = containerColor ?: MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -1159,7 +1159,7 @@ fun HubChip(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -1203,7 +1203,7 @@ fun RecommendCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(20.dp)
     ) {
         Box(

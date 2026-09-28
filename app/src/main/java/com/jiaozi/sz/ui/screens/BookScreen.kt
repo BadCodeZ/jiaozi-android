@@ -32,6 +32,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.DocRow
 import com.jiaozi.sz.ui.components.FilterChip
 import androidx.compose.material3.Icon
@@ -302,7 +303,7 @@ fun BookScreen(nav: NavHostController) {
                         onClick = { picker.launch(arrayOf("application/pdf", "text/plain", "text/markdown", "text/x-markdown")) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = AppColors.blueBg),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Row(
@@ -587,7 +588,7 @@ private fun BookDetail(
                             onClick = { onRead() },
                             modifier = Modifier.fillMaxWidth(),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Row(
@@ -675,7 +676,7 @@ private fun BookLinkRow(icon: String, title: String, desc: String, onClick: () -
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(14.dp)
     ) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {

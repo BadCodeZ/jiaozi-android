@@ -58,6 +58,7 @@ import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.LocalPracticeVm
 import com.jiaozi.sz.ui.PracticeViewModel
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.EmptyHint
@@ -285,7 +286,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                 shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
             ) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SwitchRow("穿插混合", "多章节混合出题，避免连续同类", interleave) { interleave = it }

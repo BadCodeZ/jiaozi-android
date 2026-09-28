@@ -27,7 +27,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -54,6 +53,7 @@ import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.local.UserQuestionEntity
 import com.jiaozi.sz.data.remote.BankRemote
 import com.jiaozi.sz.ui.LocalAppVm
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.HeroHeader
@@ -178,13 +178,11 @@ fun BankManageScreen(nav: NavHostController) {
         HeroHeader(
             title = "题库管理",
             subtitle = "按学段下载 / 移除科目包，增删本地自加题",
-            icon = appPainter("book"),
+            decorIcon = appPainter("book"),
             immersive = true,
-            action = {
-                IconButton(onClick = { nav.popBackStack() }) {
-                    Icon(appPainter("close"), contentDescription = "返回", tint = Color.White, modifier = Modifier.size(22.dp))
-                }
-            }
+            // 🔴 2026-09-28：补左端内联返回键（此前仅有右上角关闭键，无返回入口；
+            // 关闭键与返回键同为 popBackStack，为避免「双出口」重复，一并移除关闭键）
+            onBack = { nav.popBackStack() }
         )
 
         LazyColumn(
@@ -313,7 +311,8 @@ private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("报考学段", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -354,7 +353,8 @@ private fun UpdateNotice(busy: Boolean, onUpdate: () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.warningBg),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -430,7 +430,8 @@ private fun OverviewCard(done: Int, total: Int, busy: Boolean, onFillMissing: ()
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
@@ -627,7 +628,8 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             // 科目选择（官方名 · 三枚等宽 chip，取代原三行全宽块）

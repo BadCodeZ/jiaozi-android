@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens.lesson
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
@@ -131,7 +132,7 @@ internal fun LessonTemplateLibrary(
         // 内置骨架模板
         Text("内置骨架模板", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
         builtins.forEach { (type, bone, meat) ->
-            Card(Modifier.fillMaxWidth().clickable { onUse(LessonFields(type = type, processText = meat)) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.fillMaxWidth().clickable { onUse(LessonFields(type = type, processText = meat)) }, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
                     Box(Modifier.size(48.dp).background(AppColors.blueLight, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                         Icon(appPainter("lesson"), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(24.dp))
@@ -148,7 +149,7 @@ internal fun LessonTemplateLibrary(
         // 我的模板
         Text("我的模板（${myTpls.size}）", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
         if (myTpls.isEmpty()) {
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = AppColors.bg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = AppColors.bg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(appPainter("bars"), contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(40.dp))
                     if (templates.isEmpty()) {
@@ -161,7 +162,7 @@ internal fun LessonTemplateLibrary(
             }
         }
         myTpls.forEach { t ->
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), Arrangement.spacedBy(12.dp), Alignment.CenterVertically) {
                     Box(Modifier.size(48.dp).background(AppColors.greenBg, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                         Icon(appPainter("star"), contentDescription = null, tint = AppColors.success, modifier = Modifier.size(24.dp))

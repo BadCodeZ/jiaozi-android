@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.appPainter
@@ -112,7 +113,7 @@ internal fun SettingsCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {

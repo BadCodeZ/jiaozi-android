@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens.lesson
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.appPainter
 
@@ -70,7 +71,7 @@ internal fun ZoneCard(title: String, itemsCount: Int? = null, content: @Composab
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
@@ -122,7 +123,7 @@ internal fun LessonField(label: String, hint: String, rows: Int, value: String, 
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)) {
             Row(

@@ -225,8 +225,9 @@ val immersiveHeroRoutes = setOf(
 val selfBackRoutes = setOf(
     "inbox", "proof", "lesson",
     "books", "curric", "chapters", "knowledge", "graph", "settings",
-    // 2026-09-26：设置组 8 个二级页 —— 返回键内联在 Hero 首行左端槽，全局悬浮件彻底让位
-    "settings_appearance", "settings_island", "settings_goal", "settings_subject",
+    // 2026-09-26：设置组 9 个二级页 —— 返回键内联在 Hero 首行左端槽，全局悬浮件彻底让位
+    // 🔴 2026-09-28 补漏：settings_stage（报考学段）此前漏登记 ⇒ 与全局悬浮返回件同屏出现「双返回键」
+    "settings_appearance", "settings_island", "settings_goal", "settings_subject", "settings_stage",
     "settings_backup", "settings_webdav", "settings_ai", "settings_onboarding",
     // 🔴 2026-09-28 题库外置：两页均自带返回入口（BankManage 内联 onBack；BankDownload 为强制首启页，无返回）
     "bankdownload", "bankmanage"

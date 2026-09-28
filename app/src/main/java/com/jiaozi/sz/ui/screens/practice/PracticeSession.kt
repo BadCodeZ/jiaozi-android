@@ -8,6 +8,7 @@ package com.jiaozi.sz.ui.screens
  * 从 PracticeScreen.kt 拆分而来（纯物理拆分，逻辑未改）。
  */
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.PracticeState
@@ -236,7 +237,7 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 Modifier.fillMaxSize().verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(AppColors.blueBg).padding(horizontal = 8.dp, vertical = 3.dp)) {
@@ -275,7 +276,8 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         ) { Text("对答案") }
                     } else {
                         // 第二步：展示参考答案，自评
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text("参考答案 / 解析", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                                 Text(qq.analysis ?: "暂无解析", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
@@ -283,7 +285,8 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         }
                         // 错题本重练主观题时，展示当初作答（与当前草稿不同才提示，避免和预填重复）
                         if (!st.historyDraft.isNullOrBlank() && st.historyDraft != st.draft) {
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text("你上次作答", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                     Text(st.historyDraft ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -355,7 +358,7 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         Modifier.fillMaxWidth().onGloballyPositioned { feedbackOffset = it.positionInParent().y.toInt() },
                         colors = CardDefaults.cardColors(containerColor = if (ok) AppColors.greenBg else AppColors.redBg),
                         shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             // ① 判定行

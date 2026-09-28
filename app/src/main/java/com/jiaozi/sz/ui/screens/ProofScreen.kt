@@ -1,4 +1,5 @@
 package com.jiaozi.sz.ui.screens
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.EmptyHint
@@ -340,7 +341,7 @@ private fun ProofCard(q: Question, appVm: AppViewModel, repo: com.jiaozi.sz.data
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
@@ -508,12 +509,14 @@ private fun WrongBookTab(
 
                 groups.forEach { (key, group) ->
                     item(key = "h_$key") {
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                             Text("$key · ${group.size} 题", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(10.dp))
                         }
                     }
                     items(group, contentType = { "wrong" }) { (q, p) ->
-                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                             Column(Modifier.padding(12.dp), Arrangement.spacedBy(6.dp)) {
                                 // 🔴 2026-09-25 补 A9（#406 报告 A 类）：10 号 proof.main E5 规定
                                 //    「Row(24dp 状态圆位 + 题干 maxLines=2)」，hf 明写「错题行复用结算页答题卡状态色」，
@@ -635,7 +638,8 @@ private fun ClassifyTab(
                 items(items, contentType = { "classify" }) { e ->
                     var subj by remember { mutableStateOf(e.subject.ifBlank { "科一" }) }
                     var ch by remember { mutableStateOf("") }
-                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)) {
+                    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                         Column(Modifier.padding(12.dp), Arrangement.spacedBy(6.dp)) {
                             Text(e.q.take(80), style = MaterialTheme.typography.bodyMedium)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

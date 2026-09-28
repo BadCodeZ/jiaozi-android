@@ -1,4 +1,5 @@
 package com.jiaozi.sz.ui.screens
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.IconBadge
@@ -261,7 +262,7 @@ private fun GroupCard(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Row(

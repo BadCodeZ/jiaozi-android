@@ -13,6 +13,7 @@ import com.jiaozi.sz.ui.components.GlassBackButton
 import com.jiaozi.sz.ui.components.HeroStatCell
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.PracticeState
 import kotlin.math.*
 import androidx.compose.foundation.background
@@ -178,7 +179,8 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
         // 模考：分科报告 + 分数预估
         if (isMock && bySubject.isNotEmpty()) {
             Text("模考分科报告", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     bySubject.forEach { (subj, pair) ->
                         val (rt, tot) = pair
@@ -206,7 +208,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
             Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                 Text("错因诊断", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
-            Card(Modifier.fillMaxWidth().padding(horizontal = 0.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 0.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 FlowRow(horizontalGap = 8.dp, verticalGap = 8.dp) {
                     cause.entries.sortedByDescending { it.value }.take(4).forEach { (c, n) ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -244,8 +246,8 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 Card(
                     Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
+                    shape = RoundedCornerShape(20.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                     Row(
                         Modifier.padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)

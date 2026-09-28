@@ -82,7 +82,7 @@ fun DocReader(
         Card(
             modifier = Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(

@@ -1,4 +1,5 @@
 package com.jiaozi.sz.ui.screens
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.EmptyHint
@@ -249,7 +250,7 @@ fun InboxScreen(nav: NavHostController) {
 
                             .clickable { if (showForm) reset() else { reset(); showForm = true } },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
                         shape = RoundedCornerShape(14.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
@@ -279,7 +280,8 @@ fun InboxScreen(nav: NavHostController) {
             // ⚠️ 表单必须放在滚动容器内：此前挂在非滚动外框上，展开后溢出屏外、「保存」按钮不可达
             if (showForm) {
                 item(key = "form") {
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                         Column(Modifier.padding(12.dp), Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 types.forEach { (t, label) -> FilterChip(selected = type == t, onClick = { type = t }, label = { Text(label) }) }
@@ -346,7 +348,7 @@ fun InboxScreen(nav: NavHostController) {
                             onLongClick = { convSubject = "科三"; convChapter = "收集箱"; convertTarget = e }
                         ),
                     colors = CardDefaults.cardColors(containerColor = if (hlInboxId == e.id) AppColors.blueBg else MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(

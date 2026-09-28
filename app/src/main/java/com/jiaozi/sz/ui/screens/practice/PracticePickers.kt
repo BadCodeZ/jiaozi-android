@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -144,7 +146,8 @@ internal fun AiGenPanel(appVm: AppViewModel, vm: PracticeViewModel, onLaunched: 
                 items(aiState.preview.size, contentType = { "aiprev" }) { i ->
                     val q = aiState.preview[i]
                     val checked = q.id in selected
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                                 Checkbox(checked = checked, onCheckedChange = {

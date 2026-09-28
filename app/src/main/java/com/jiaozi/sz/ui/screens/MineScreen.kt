@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens
 
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
@@ -356,7 +357,7 @@ private fun MineGroup(title: String, entries: List<MineEntry>, onOpen: (MineEntr
         Card(
             Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
             shape = RoundedCornerShape(20.dp)
         ) {
             Column(Modifier.fillMaxWidth()) {
