@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.jiaozi.sz.domain.PracticeConfig
+import com.jiaozi.sz.domain.StatsCalculator
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.PracticeViewModel
 
@@ -171,9 +172,10 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
         repo.syllabus.flatMap { syl ->
             syl.chapters.map { ch ->
                 val qs = repo.bank.exam.filter { it.subject == syl.subject && it.chapter == ch.name && (it.subject != "科三" || it.disc == disc) }
-                val practiced = qs.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
-                val right = qs.sumOf { q -> progress[q.id]?.right ?: 0 }
-                val acc = if (practiced > 0) right * 100 / practiced else 0
+                // 🔴 2026-09-29 修：分母应为作答次数（right+wrong），且消除整数除法误差（原 342% 越界）
+                val stat = StatsCalculator.attemptStat(qs, progress)
+                val practiced = stat.practiced
+                val acc = stat.accPercent
                 val pct = if (qs.isNotEmpty()) practiced * 100 / qs.size else 0
                 Triple(ch.name, practiced, (qs.size to acc) to pct)
             }

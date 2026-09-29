@@ -1,5 +1,6 @@
 package com.jiaozi.sz.ui.screens
 
+import com.jiaozi.sz.domain.StatsCalculator
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
@@ -124,12 +125,12 @@ fun BankScreen(nav: NavHostController) {
             val syllabus = repo.syllabus.find { it.subject == subj }
             syllabus?.chapters?.map { ch ->
                 val qs = repo.bank.exam.filter { it.subject == subj && it.chapter == ch.name && (subj != "科三" || it.disc == disc) }
-                val practiced = qs.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
-                val right = qs.sumOf { q -> progress[q.id]?.right ?: 0 }
-                val wrong = qs.sumOf { q -> progress[q.id]?.wrong ?: 0 }
-                val acc = if (practiced > 0) right * 100 / practiced else 0
+                // 🔴 2026-09-29 修：原分母误用「已练题数」⇒ 正确率可 >100%；此处口径下沉 StatsCalculator
+                val stat = StatsCalculator.attemptStat(qs, progress)
+                val practiced = stat.practiced
+                val acc = stat.accPercent
                 val pct = if (qs.isNotEmpty()) practiced * 100 / qs.size else 0
-                ChapterDisplay(subj, ch.name, qs.size, practiced, wrong, acc, pct)
+                ChapterDisplay(subj, ch.name, qs.size, practiced, stat.wrong, acc, pct)
             } ?: emptyList()
         }.filter { it.total > 0 }
     }

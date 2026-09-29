@@ -31,6 +31,27 @@ class QuizParseTest {
         assertEquals(-1, answerIndex("X"))
     }
 
+    /**
+     * 🔴 P1 回归：文本型答案绝不能因首字符落在 A–H 而被误判为选项下标。
+     * 全库实测 7 例（科二 `A-诱发事件…`、科三化学 `c(...)`、生物 `C3植物…`、物理 `g=9.8…` 等）。
+     */
+    @Test
+    fun `文本型答案返回负一`() {
+        assertEquals(-1, answerIndex("A-诱发事件（Activating event）"))
+        assertEquals(-1, answerIndex("c(...)"))
+        assertEquals(-1, answerIndex("C3植物"))
+        assertEquals(-1, answerIndex("g=9.8 m/s²"))
+        assertEquals(-1, answerIndex("A、B 均可"))
+    }
+
+    /** 允许首尾空白：trim 后恰为单字母仍有效 */
+    @Test
+    fun `单字母允许首尾空白`() {
+        assertEquals(0, answerIndex(" A "))
+        assertEquals(2, answerIndex("\tC\r\n"))
+        assertEquals(-1, answerIndex("A B"))
+    }
+
     /** 随机 200 轮：每次乱序后，answer 指向的选项文本必须保持不变 */
     @Test
     fun `选项乱序保持答案语义`() {

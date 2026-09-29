@@ -9,10 +9,22 @@ fun parseOptions(opt: String): List<String> {
     return re.findAll(opt).map { it.groupValues[2].trim() }.filter { it.isNotEmpty() }.toList()
 }
 
-/** 答案字母 → 选项下标（"D" → 3）。主观题/异常返回 -1。 */
+/**
+ * 答案字母 → 选项下标（"D" → 3）。主观题/异常返回 -1。
+ *
+ * 🔴 客观题答案规范：**整串恰为单个字母 A–H**（如 `"C"`）。
+ * 旧实现只取首字符，会把文本型答案误判为选项下标——实测全库 7 例，
+ * 例如科二 `"A-诱发事件（Activating event）"`（艾里斯 ABC 理论，主观题）、
+ * 科三化学 `"c(...)"`、生物 `"C3植物…"`、物理 `"g=9.8…"` 等。
+ * 这些题 opt 为空（主观题）故被 `shuffleQuestionOptions` 的 `opts.size < 2` 早退挡下，
+ * 侥幸未触发；一旦有选项不全的脏数据，就会把正确答案错标到 A 选项。
+ * ⇒ 收紧为「trim 后长度必须恰为 1」，从根上杜绝误判。
+ */
 fun answerIndex(answer: String): Int {
     if (answer.isBlank()) return -1
-    val c = answer.first().uppercaseChar()
+    val a = answer.trim()
+    if (a.length != 1) return -1
+    val c = a[0].uppercaseChar()
     return if (c in 'A'..'H') c - 'A' else -1
 }
 

@@ -31,6 +31,7 @@ import com.jiaozi.sz.data.model.LessonFields
 import com.jiaozi.sz.data.model.LessonTemplate
 import com.jiaozi.sz.data.model.json
 import com.jiaozi.sz.domain.MergeEngine
+import com.jiaozi.sz.domain.BankNormalize
 import com.jiaozi.sz.data.model.Bank
 import com.jiaozi.sz.data.model.Knowledge
 import com.jiaozi.sz.data.model.Question
@@ -132,6 +133,16 @@ class AppRepository(
     /** 同步信封基线的落盘存储（替代 meta 大行；见 [RawEnvStore] 注释） */
     private val rawStore: RawEnvStore
 ) {
+    /**
+     * 🔴 P0 章名归一（2026-09-29）：**必须在任何索引/派生属性之前执行**。
+     * Kotlin 中 init 块与属性初始化器按文本顺序运行，故本块置于 [discList]/[bySubject] 之前。
+     * 归一改的是 `Question.chapter` 本身 ⇒ 下游 4 个直接扫 `repo.bank.exam` 的消费点
+     * （BankScreen / GraphScreen / PracticeHomeParts / PracticeSetupSheet）一并生效。
+     */
+    init {
+        bank = BankNormalize.bank(bank)
+    }
+
     /** 科三学科列表（去重，保持出现顺序） */
     var discList: List<String> =
         bank.exam.filter { it.subject == "科三" }.mapNotNull { it.disc }.distinct()
@@ -153,11 +164,14 @@ class AppRepository(
      * 故改为 var 并在此集中重建，避免散落各处的 `repo.bank.exam` 读点遗漏刷新。
      */
     suspend fun reloadBank(newBank: Bank) {
-        bank = newBank
-        discList = newBank.exam.filter { it.subject == "科三" }.mapNotNull { it.disc }.distinct()
-        bySubject = newBank.exam.groupBy { it.subject }
-        byChapter = newBank.exam.groupBy { it.subject to it.chapter }
-        byDiscChapter = newBank.exam.filter { it.subject == "科三" }.groupBy { it.disc to it.chapter }
+        // 🔴 P0 章名归一：换库后新数据同样带脏章名（如外置 ke1.json 的「三、教师职业道德」）
+        // ⇒ 与构造入口保持同一归一，避免「首启下载的包已归一、后续增删科目又退回脏名」。
+        val nb = BankNormalize.bank(newBank)
+        bank = nb
+        discList = nb.exam.filter { it.subject == "科三" }.mapNotNull { it.disc }.distinct()
+        bySubject = nb.exam.groupBy { it.subject }
+        byChapter = nb.exam.groupBy { it.subject to it.chapter }
+        byDiscChapter = nb.exam.filter { it.subject == "科三" }.groupBy { it.disc to it.chapter }
     }
 
     fun questionsByChapter(subject: String, chapter: String): List<Question> =

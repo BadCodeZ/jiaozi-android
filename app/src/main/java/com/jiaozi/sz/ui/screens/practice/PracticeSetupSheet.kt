@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.domain.PracticeConfig
+import com.jiaozi.sz.domain.StatsCalculator
 import com.jiaozi.sz.ui.AppViewModel
 import com.jiaozi.sz.ui.LocalAppVm
 import com.jiaozi.sz.ui.LocalPracticeVm
@@ -100,9 +101,9 @@ fun PracticeSetupScreen(nav: NavHostController) {
                 it.subject == subj && it.chapter == ch.name && (subj != "科三" || it.disc == subjDisc) &&
                     BankStore.stageMatches(it, stageFilter)
             }
-            val practiced = qs.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
-            val right = qs.sumOf { q -> progress[q.id]?.right ?: 0 }
-            val acc = if (practiced > 0) right * 100 / practiced else 0
+            val stat = StatsCalculator.attemptStat(qs, progress)
+            val practiced = stat.practiced
+            val acc = stat.accPercent
             val pct = if (qs.isNotEmpty()) practiced * 100 / qs.size else 0
             ChapterStat(ch.name, practiced, qs.size, acc, pct)
         }

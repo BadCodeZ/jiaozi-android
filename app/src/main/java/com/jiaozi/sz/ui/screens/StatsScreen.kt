@@ -151,29 +151,27 @@ fun StatsScreen(nav: NavHostController) {
     }
     val rangeTotal = remember(filteredDaily) { filteredDaily.sumOf { it.right + it.wrong } }
 
-    // ── E5 科目分布 ──
+    // ── E5 科目分布 ──（口径下沉 StatsCalculator.attemptStat：分母＝作答次数，非已练题数）
     val subjectStats = remember(progress, questions, disc) {
         listOf("科一", "科二", "科三").mapNotNull { subj ->
             val qs = questions.filter { it.subject == subj && (subj != "科三" || it.disc == disc) }
             if (qs.isEmpty()) return@mapNotNull null
-            val trained = qs.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
-            val right = qs.sumOf { q -> progress[q.id]?.right ?: 0 }
-            SubjectStat(subj, if (trained > 0) right.toFloat() / trained else 0f, trained)
+            val stat = StatsCalculator.attemptStat(qs, progress)
+            SubjectStat(subj, stat.acc, stat.practiced)
         }
     }
 
     // ── E7 需要加强：正确率升序；仅「正确率 <75% 且已练 ≥5 题」──
+    // 🔴 2026-09-29 修复：原分母误用「已练题数」⇒ 正确率恒 ≥75% ⇒ 本区块恒空。
     val weakChapters = remember(progress, questions, disc) {
         questions
             .filter { it.subject != "科三" || it.disc == disc }
             .groupBy { it.subject to it.chapter }
             .mapNotNull { (k, list) ->
-                val trained = list.count { q -> progress[q.id]?.let { it.right + it.wrong > 0 } == true }
-                if (trained < 5) return@mapNotNull null
-                val right = list.sumOf { q -> progress[q.id]?.right ?: 0 }
-                val acc = right.toFloat() / trained
-                if (acc >= 0.75f) return@mapNotNull null
-                WeakChapter(k.first, k.second, acc, trained)
+                val stat = StatsCalculator.attemptStat(list, progress)
+                if (stat.practiced < 5) return@mapNotNull null
+                if (stat.acc >= 0.75f) return@mapNotNull null
+                WeakChapter(k.first, k.second, stat.acc, stat.practiced)
             }
             .sortedWith(compareBy({ it.acc }, { -it.trained }))
             .take(5)
