@@ -53,8 +53,11 @@
 
 ### 相关项目
 
-- **网页端**：`jiazi-practice-platform` — 在线版教资备考工作台，与安卓端数据互通
-  - 仓库：https://github.com/BadCodeZ/jiazi-practice-platform
+- **官网（手机版落地页）**：安卓端官方介绍与下载入口
+  - 在线访问：https://badcodez.github.io/jiaozi-android/
+  - 源码：本仓库 [`docs/`](docs/)，下载按钮恒定指向最新 Release
+- **网页端**：`Jiaozi-Practice-Platform` — 在线版教资备考工作台，与安卓端数据互通
+  - 仓库：https://github.com/BadCodeZ/Jiaozi-Practice-Platform
   - 在线使用：https://badcodez.github.io/Jiaozi-Practice-Platform/
 
 ### 版本对比
@@ -188,6 +191,10 @@
 
 从 [Releases 页面](https://github.com/BadCodeZ/jiaozi-android/releases) 下载最新 APK 安装包（当前版本 [v2.8.0](https://github.com/BadCodeZ/jiaozi-android/releases/tag/v2.8.0)）。
 
+- **官网下载页**：https://badcodez.github.io/jiaozi-android/
+- **固定直链**（恒定指向最新发布版，可长期收藏）：
+  `https://github.com/BadCodeZ/jiaozi-android/releases/latest/download/JiaoziAPP.apk`
+
 > 自 V2.8.0 起，题库不再内置于安装包，首次启动后按引导在「题库管理」中下载所需科目；科目三可仅下载当前报考学段。
 
 #### 安装步骤
@@ -301,8 +308,8 @@ cd jiaozi-android
 | 项目 | 值 |
 |------|------|
 | 安装包 | `JiaoziAPP.apk` |
-| 大小 | 18.25 MB（题库外置后） |
-| MD5 | `875cea1c99d8504dba12a04beff9d2c3` |
+| 大小 | 18.33 MB（19,223,836 字节，题库外置后） |
+| MD5 | `5fdf556e33f6418351a0925b46fe35a7` |
 | 内部版本 | V2.8.0 |
 | 包名 | com.jiaozi.sz |
 | 题库总量 | 4,780 道（外置于 `banks/`，按需下载） |
@@ -329,7 +336,7 @@ cd jiaozi-android
 
 #### 安装与运行
 
-- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `875cea1c99d8504dba12a04beff9d2c3`，与发布一致即未被篡改
+- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `5fdf556e33f6418351a0925b46fe35a7`，与发布一致即未被篡改
 - **白屏/卡在启动**：首次启动需初始化本地数据库（约 1-2 秒），属正常；若长时间空白，杀进程重开
 - **题库是空的 / 无法练习**：自 V2.8.0 起题库外置，需在「题库管理」中下载对应科目后才可练习；科目三请先设置报考学段再下载
 - **鸿蒙系统兼容**：部分国产 ROM 需手动授权安装权限
@@ -430,8 +437,8 @@ limitations under the License.
 |------|-------|
 | Release | V2.8.0 |
 | Questions | 4,780 (Subject 1: 595 / Subject 2: 429 / Subject 3: 3,756 across 17 subjects), **externalized** in `banks/` and downloaded on demand |
-| Package | `JiaoziAPP.apk` (18.25 MB, without question banks) |
-| File Integrity | MD5: `875cea1c99d8504dba12a04beff9d2c3` |
+| Package | `JiaoziAPP.apk` (18.33 MB / 19,223,836 bytes, without question banks) |
+| File Integrity | MD5: `5fdf556e33f6418351a0925b46fe35a7` |
 | Min OS | Android 8.0 (API 26) |
 | Network | Core features are fully offline; only AI commentary and sync require internet |
 | Source Code | 190 source files, fully open source |
@@ -440,9 +447,13 @@ limitations under the License.
 
 ### Related Projects
 
-- **Web Version**: `jiazi-practice-platform` — Online teacher certification workbench, data-compatible with this Android app
-  - Repository: https://github.com/BadCodeZ/jiazi-practice-platform
+- **Web Version**: `Jiaozi-Practice-Platform` — Online teacher certification workbench, data-compatible with this Android app
+  - Repository: https://github.com/BadCodeZ/Jiaozi-Practice-Platform
   - Live Demo: https://badcodez.github.io/Jiaozi-Practice-Platform/
+
+- **Official Site (mobile landing page)**: intro and download entry for the Android app
+  - Live: https://badcodez.github.io/jiaozi-android/
+  - Source: [`docs/`](docs/) in this repository; the download button always points to the latest Release
 
 ### Key Features
 
@@ -461,7 +472,10 @@ limitations under the License.
 
 ### Download & Install
 
-Download the latest APK from the [Releases page](https://github.com/BadCodeZ/jiaozi-android/releases).
+Download the latest APK from the [Releases page](https://github.com/BadCodeZ/jiaozi-android/releases),
+or use the stable link that always resolves to the newest build:
+`https://github.com/BadCodeZ/jiaozi-android/releases/latest/download/JiaoziAPP.apk`.
+The official landing page is https://badcodez.github.io/jiaozi-android/.
 
 **Installation**:
 1. Transfer the APK to your Android device
@@ -536,5 +550,5 @@ Licensed under the Apache License, Version 2.0.
 **综合教资备考平台**  
 作者：BadCodeZ  
 仓库：https://github.com/BadCodeZ/jiaozi-android  
-相关网页端：https://github.com/BadCodeZ/jiazi-practice-platform  
+相关网页端：https://github.com/BadCodeZ/Jiaozi-Practice-Platform  
 在线使用：https://badcodez.github.io/Jiaozi-Practice-Platform/
