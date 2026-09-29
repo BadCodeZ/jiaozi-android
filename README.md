@@ -43,7 +43,7 @@
 | 项目 | 说明 |
 |------|------|
 | 版本 | **V2.8.0**（内部版本号主称呼；此前对外称「正式版 V1.1 / 内部 V2.75」） |
-| 题库 | 3,342 道，覆盖科一/科二全章节 + 科三 17 个学科；**已外置**（`banks/`），首次使用按需下载 |
+| 题库 | 4,780 道（科一 595 / 科二 429 / 科三 3,756），覆盖科一/科二全章节 + 科三 17 个学科；**已外置**（`banks/`），首次使用按需下载 |
 | 安装包 | 通过 GitHub Release 分发（详见「下载与安装」） |
 | 运行环境 | Android 8.0 (API 26) 及以上 |
 | 网络依赖 | 核心功能全部离线可用，仅 AI 讲评和同步需联网 |
@@ -99,7 +99,7 @@
 - AI 助手清空对话、教案存为模板重名等操作补充二次确认与提示。
 - 修正题库下载地址域名拼写（`jiazi-android` → `jiaozi-android`）。
 
-> 说明：题库总量不变（3,342 道），已有学习数据完整保留；升级后题库需按引导重新下载一次。本版内部版本号为 **V2.8.0**。
+> 说明：题库总量 4,780 道（科一 595 / 科二 429 / 科三 3,756），已有学习数据完整保留；升级后题库需按引导重新下载一次。本版内部版本号为 **V2.8.0**。
 
 ---
 
@@ -236,7 +236,7 @@ cd jiaozi-android
 
 - `app/build.gradle` 中 `versionCode=82 / versionName=2.8.0`（与发布版本一致），发布包文件名为 `JiaoziAPP.apk`，版本由内部逻辑确定
 - 测试用 `debug.keystore` 不随源码分发，需自行生成或改用官方签名
-- 题库已**外置**至仓库根目录 `banks/`（19 个分卷文件，共 3,342 题），运行时按需下载到本地，不随同步包导出；`assets/` 仅保留知识库与考纲等静态数据
+- 题库已**外置**至仓库根目录 `banks/`（19 个科目包；科三 13 个同名分卷科再按学段拆为 `_junior`/`_senior`，共 32 个分卷文件、4,780 道题），运行时按需下载到本地，不随同步包导出；`assets/` 仅保留知识库与考纲等静态数据
 
 ---
 
@@ -305,7 +305,7 @@ cd jiaozi-android
 | MD5 | `875cea1c99d8504dba12a04beff9d2c3` |
 | 内部版本 | V2.8.0 |
 | 包名 | com.jiaozi.sz |
-| 题库总量 | 3,342 道（外置于 `banks/`，按需下载） |
+| 题库总量 | 4,780 道（外置于 `banks/`，按需下载） |
 | 科三学科 | 17 个 |
 | 源码文件数 | 190 个源文件 |
 | 最低系统 | Android 8.0 (API 26) |
@@ -360,7 +360,7 @@ cd jiaozi-android
 - **按学段真拆包**：科目三按报考学段拆分文件，只下载本学段（初中约 1.8 MB / 高中约 1.9 MB）；切换学段自动清理旧学段文件
 - **按学段筛题**：练习与模考按当前报考学段筛题（本学段题目 + 通用题目），科目一、科目二两科通用
 - **细节改进**：加载骨架屏与空状态引导、二级页悬浮返回键、搜索直达高亮定位、关键操作二次确认
-- 源码 190 个文件，题库 3,342 道（外置于仓库根目录 `banks/`）
+- 源码 190 个文件，题库 4,780 道（外置于仓库根目录 `banks/`）
 
 #### V2.77（versionCode 81）— 应用内更新检测
 
@@ -429,7 +429,7 @@ limitations under the License.
 | Item | Value |
 |------|-------|
 | Release | V2.8.0 |
-| Questions | 3,342 (Subject 1/2 all chapters + Subject 3 across 17 subjects), **externalized** in `banks/` and downloaded on demand |
+| Questions | 4,780 (Subject 1: 595 / Subject 2: 429 / Subject 3: 3,756 across 17 subjects), **externalized** in `banks/` and downloaded on demand |
 | Package | `JiaoziAPP.apk` (18.25 MB, without question banks) |
 | File Integrity | MD5: `875cea1c99d8504dba12a04beff9d2c3` |
 | Min OS | Android 8.0 (API 26) |
@@ -501,7 +501,7 @@ cd jiaozi-android
 - Question banks moved out of the APK and downloaded on demand, plus a new bank management screen
 - Subject 3 banks split by exam stage (junior/senior), only the relevant file is downloaded
 - Practice and mock exams filter questions by the selected exam stage
-- 190 source files; 3,342 questions shipped in `banks/`
+- 190 source files; 4,780 questions shipped in `banks/`
 
 #### V2.77 — In-app Update Check
 
