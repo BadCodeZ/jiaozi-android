@@ -30,3 +30,6 @@ local.properties
 # 工具目录（本地脚本/推送映射表等辅助产物），整体不入库
 工具/
 tools/
+
+# 安装包二进制（发布产物，走 GitHub Releases 分发，不入版本库）
+*.apk
