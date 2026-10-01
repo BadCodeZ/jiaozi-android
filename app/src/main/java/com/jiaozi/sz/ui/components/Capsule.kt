@@ -20,7 +20,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 
 /**
- * 胶囊形悬浮提示（CMP-CAPSULE）：暗底 #1A1A1A @ 0.92 药丸 + 主色点缀 + 文本。
+ * 胶囊形悬浮提示（CMP-CAPSULE）：明暗双态药丸（亮色深底 + 白字 / 暗色浅底 + 近黑字）+ 主色点缀 + 文本。
  * 视觉对齐 HyperOS「焦点通知/灵动岛」——深色毛玻璃药丸，应用内自绘。
  *
  * 🔴 14 号规范 `overlays.capsule` 记两个变体：
@@ -47,7 +47,7 @@ fun Capsule(
             // 🔴 2026-09-28：阴影 10dp → NavTokens.Elevation(8dp)，全站悬浮件对齐同一 token
             .shadow(NavTokens.Elevation, RoundedCornerShape(50))
             .clip(RoundedCornerShape(50))
-            .background(androidx.compose.ui.graphics.Color(0xFF1A1A1A).copy(alpha = 0.92f))
+            .background(AppColors.capsuleBg.copy(alpha = 0.92f))
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -66,7 +66,7 @@ fun Capsule(
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,
-            color = androidx.compose.ui.graphics.Color.White
+            color = AppColors.capsuleFg
         )
     }
 }

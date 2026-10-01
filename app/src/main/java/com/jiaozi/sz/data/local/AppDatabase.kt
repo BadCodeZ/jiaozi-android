@@ -11,9 +11,9 @@ import android.content.Context
     entities = [
         ProgressEntity::class, DailyStatEntity::class, MetaEntity::class, UserQuestionEntity::class,
         LessonEntity::class, InboxEntity::class, AiChatEntity::class, CurricEntity::class, BookEntity::class,
-        ProofReviewEntity::class
+        ProofReviewEntity::class, WeaknessEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -28,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun docIndexDao(): DocIndexDao
     abstract fun proofReviewDao(): ProofReviewDao
+    abstract fun weaknessDao(): WeaknessDao
 
     companion object {
         /** v2→v3：progress 表新增 draft 列（主观题草稿），保留既有进度 */
@@ -137,6 +138,23 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * v10→v11：新增 weakness 表（薄弱点攻坚笔记，独立模块，与备课教案分家）。
+         * 全部列带默认值 ⇒ 存量数据无损；仅本地存储，不参与信封跨端同步。
+         */
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `weakness` (
+                        `id` TEXT NOT NULL, `title` TEXT NOT NULL, `subject` TEXT NOT NULL DEFAULT '',
+                        `chapter` TEXT NOT NULL DEFAULT '', `disc` TEXT NOT NULL DEFAULT '',
+                        `body` TEXT NOT NULL DEFAULT '', `fromExamId` TEXT NOT NULL DEFAULT '',
+                        `createdAt` INTEGER NOT NULL DEFAULT 0, `_mt` INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(`id`))"""
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
@@ -147,7 +165,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "jiaozi_exam.db"
                 )
-                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11)
                     .fallbackToDestructiveMigration()
                     .addCallback(object : RoomDatabase.Callback() {
                         /** 全新安装（v8 直接建库）时，Room 不会建非实体表，这里补建 FTS 虚表 */

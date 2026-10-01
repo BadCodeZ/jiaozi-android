@@ -86,7 +86,7 @@ internal fun SettingsDetailPage(
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 76.dp),
+                .padding(bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content
         )

@@ -218,7 +218,7 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 76.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──

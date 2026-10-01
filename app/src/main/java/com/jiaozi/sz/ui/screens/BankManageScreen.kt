@@ -370,7 +370,7 @@ private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit
         colors = CardDefaults.cardColors(
             containerColor = if (unset) AppColors.warningBg else MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -379,7 +379,7 @@ private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit
                 if (unset) {
                     Box(
                         Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(AppColors.warning.copy(alpha = 0.16f))
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
@@ -397,7 +397,7 @@ private fun StagePicker(stage: String, busy: Boolean, onSelect: (String) -> Unit
                 BankStore.STAGE_OPTIONS.forEach { opt ->
                     val sel = stage == opt
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                             .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surfaceVariant)
                             .then(if (busy) Modifier else Modifier.clickable { onSelect(opt) })
                             .padding(vertical = 10.dp),
@@ -431,7 +431,7 @@ private fun UpdateNotice(busy: Boolean, onUpdate: () -> Unit) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = AppColors.warningBg),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Row(
@@ -488,13 +488,13 @@ private fun TinyPill(
     }
     Box(
         Modifier
-            .clip(RoundedCornerShape(9.dp))
+            .clip(RoundedCornerShape(com.jiaozi.sz.ui.components.Radius.xs))
             .background(bg)
             .then(if (enabled) Modifier.clickable { onClick() } else Modifier)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = fg, fontWeight = FontWeight.Medium, fontSize = 12.sp, maxLines = 1)
+        Text(text, color = fg, fontWeight = FontWeight.Medium, fontSize = 13.sp, maxLines = 1)
     }
 }
 
@@ -516,7 +516,7 @@ private fun OverviewCard(
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Row(
@@ -604,7 +604,7 @@ private fun PackRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -625,7 +625,7 @@ private fun PackRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.blue,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(AppColors.blueBg)
                             .padding(horizontal = 6.dp, vertical = 1.dp)
                     )
@@ -660,7 +660,7 @@ private fun UserQuestionRow(uq: UserQuestionEntity, onDelete: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surface)
             .padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -715,7 +715,7 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -725,7 +725,7 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
                 subjectOptions.forEach { key ->
                     val sel = subject == key
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                             .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surface)
                             .clickable { subject = key }
                             .padding(vertical = 10.dp),
@@ -735,7 +735,7 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
                             BankStore.shortName(key),
                             color = if (sel) Color.White else AppColors.textPrimary,
                             fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             maxLines = 1
                         )
                     }
@@ -751,14 +751,14 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
                             row.forEach { pack ->
                                 val sel = disc == pack.name
                                 Box(
-                                    Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                                    Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                                         .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surface)
                                         .clickable { disc = pack.name }
                                         .padding(vertical = 8.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(pack.name, color = if (sel) Color.White else AppColors.textPrimary,
-                                        fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                                        fontWeight = FontWeight.Medium, fontSize = 13.sp)
                                 }
                             }
                             // 补齐末行空位，保持等宽
@@ -800,7 +800,7 @@ private fun AddQuestionForm(stage: String?, onSubmit: (UserQuestionEntity) -> Un
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue)
             ) {
-                Text("保存到本地题库", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text("保存到本地题库", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             }
             Text(
                 if (opt.isBlank()) "当前为空选项 ⇒ 按主观题保存（提交时自评对错）。" else "当前有选项 ⇒ 按选择题保存。",

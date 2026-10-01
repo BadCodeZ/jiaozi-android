@@ -71,8 +71,8 @@ fun DocRow(
             // 前导：40dp 块（类型色块 / 图标块由调用方提供）
             leading()
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(name, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(meta, fontSize = 12.sp, color = AppColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = AppColors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(meta, fontSize = 13.sp, color = AppColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             // 状态徽标（statusBadge 非空时显示；配色与本屏原映射一致）
             if (statusBadge != null) {

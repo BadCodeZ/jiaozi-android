@@ -101,7 +101,7 @@ internal fun LessonTemplateLibrary(
         var tplFilter by remember { mutableStateOf("全部") }
         val tplChips: @Composable RowScope.() -> Unit = {
             listOf("全部", "新授", "复习", "实验", "公开课").forEach { s ->
-                FilterChip(selected = s == tplFilter, onClick = { tplFilter = s }, label = { Text(s, fontSize = 12.sp) })
+                FilterChip(selected = s == tplFilter, onClick = { tplFilter = s }, label = { Text(s, fontSize = 13.sp) })
             }
         }
 
@@ -139,7 +139,7 @@ internal fun LessonTemplateLibrary(
                     }
                     Column(Modifier.weight(1f), Arrangement.spacedBy(4.dp)) {
                         Text("$type · $bone", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                        Text(meat, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp, maxLines = 1)
+                        Text(meat, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp, maxLines = 1)
                     }
                     Icon(appPainter("edit"), contentDescription = "用此骨架", tint = AppColors.blue, modifier = Modifier.size(20.dp))
                 }
@@ -153,7 +153,7 @@ internal fun LessonTemplateLibrary(
                 Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(appPainter("bars"), contentDescription = null, tint = AppColors.textSecondary, modifier = Modifier.size(40.dp))
                     if (templates.isEmpty()) {
-                        Text("还没有自己的模板", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text("还没有自己的模板", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         Text("在编辑器中点「存为模板」即可把当前教案存为可复用模板。", style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary, fontSize = 13.sp)
                     } else {
                         Text("当前筛选下没有匹配的模板。", style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary, fontSize = 13.sp)
@@ -169,7 +169,7 @@ internal fun LessonTemplateLibrary(
                     }
                     Column(Modifier.weight(1f).clickable { onUse(t.fields.copy(grade = t.grade, type = t.type)) }, Arrangement.spacedBy(4.dp)) {
                         Text(t.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                        Text("${t.grade} · ${t.type}", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                        Text("${t.grade} · ${t.type}", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
                     }
                     IconButton(onClick = { delId = t.id }, modifier = Modifier.size(32.dp)) {
                         Icon(appPainter("trash"), contentDescription = "删除模板", tint = AppColors.danger, modifier = Modifier.size(18.dp))

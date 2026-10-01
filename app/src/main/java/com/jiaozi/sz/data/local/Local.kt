@@ -278,6 +278,40 @@ interface InboxDao {
 }
 
 /**
+ * 薄弱点攻坚笔记（独立模块，与备课教案分家）。
+ * 来源：练习结算页「错题生成攻坚笔记」注入，或手动新建。
+ * 仅本地存储（不参与信封跨端同步，与进度数据同口径），无结构化十二要素包袱。
+ */
+@Serializable
+@Entity(tableName = "weakness")
+data class WeaknessEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val subject: String = "",          // 科一 / 科二 / 科三
+    val chapter: String = "",          // 章节（可选）
+    val disc: String = "",             // 科三学科（可选）
+    val body: String = "",             // 攻坚笔记正文（错题归集 / 补强思路）
+    val fromExamId: String = "",       // 来源标记：practice:N题（手动新建为空）
+    val createdAt: Long = 0,
+    val _mt: Long = 0
+)
+
+@Dao
+interface WeaknessDao {
+    @Query("SELECT * FROM weakness ORDER BY createdAt DESC")
+    fun all(): Flow<List<WeaknessEntity>>
+
+    @Query("SELECT * FROM weakness WHERE id = :id")
+    suspend fun get(id: String): WeaknessEntity?
+
+    @Upsert
+    suspend fun upsert(e: WeaknessEntity)
+
+    @Query("DELETE FROM weakness WHERE id = :id")
+    suspend fun delete(id: String)
+}
+
+/**
  * AI 帮手对话历史（user/assistant 轮次；可同步到网页端 `aiHistory` 集合）。
  */
 @Serializable

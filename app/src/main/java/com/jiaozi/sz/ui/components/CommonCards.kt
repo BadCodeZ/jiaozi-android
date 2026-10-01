@@ -1,5 +1,7 @@
 package com.jiaozi.sz.ui.components
 
+import com.jiaozi.sz.ui.components.AppPalette
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -120,7 +122,22 @@ fun HeroHeader(
      * 整块高度约从 ~137dp 降到 ~80dp（沉浸页含状态栏 inset），**副标题等信息一条不丢**。
      * 默认 `false` 保持既有页面观感；要"默认简洁"的页面显式传 `true`。
      */
-    compact: Boolean = false
+    compact: Boolean = false,
+    /**
+     * 🔴 2026-09-30 新增（修实测缺陷 P1：Hero 副标题被无差别截断）。
+     *
+     * **背景**：此前 subtitle **恒 `maxLines = 1`**，而大量调用方的文案远超一行
+     * （今日页「点此选择目标日，开启备考倒计时」、下载页「先选报考学段，只下载你需要的题目」），
+     * 真机实测渲染成「点此选择目标日，开启备考…」「先选报考学段，只下…」——
+     * **关键信息（"开启什么"/"下载什么"）恰好落在省略号里**，比不显示更糟。
+     *
+     * **默认行为（`null`，推荐）＝ 自动**：
+     * - 含硬换行 `'\n'` ⇒ 仍按行拆分、每行 1 行（保 2026-09-22 的 `books.main` 两行方案，零回归）；
+     * - 不含硬换行 ⇒ 允许 **2 行**自动折行（本次修复目标）。
+     *
+     * 需要强制单行的调用方显式传 `1`。
+     */
+    subtitleMaxLines: Int? = null
 ) {
     val heroShape = if (immersive) {
         androidx.compose.foundation.shape.RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
@@ -214,7 +231,7 @@ val screenWpx = with(LocalDensity.current) { LocalConfiguration.current.screenWi
                         lineTo(px + headR * 0.4f, py - bodyR * 0.75f)
                         close()
                     }
-                    drawPath(beak, Color(0xFFE67E22).copy(alpha = 0.3f))
+                    drawPath(beak, AppPalette.c_ffe67e22.copy(alpha = 0.3f))
                     // 眼睛（小白点）
                     drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px - headR * 0.25f, py - bodyR * 0.85f))
                     drawCircle(Color.White.copy(alpha = 0.4f), headR * 0.2f, Offset(px + headR * 0.3f, py - bodyR * 0.85f))
@@ -245,21 +262,30 @@ val screenWpx = with(LocalDensity.current) { LocalConfiguration.current.screenWi
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            if (onBack != null || icon != null) {
+            // 🔴🔴 2026-10-01 九校二迭代（杰哥裁定）：左端槽的**返回键**改用 Liquid Glass 圆钮，44dp。
+            //   原形态 = 46dp 白 18% 圆 + 22dp 白箭头（Hero 渐变上半透，刻意弱化）。
+            //   杰哥要求全站返回/关闭入口「统一液化玻璃材质 + 统一大小（= 二级界面左上角返回键的 44dp）」，
+            //   ⇒ 这里换成与全局悬浮返回件**完全同一个** [GlassIconButton]：
+            //     同一套 drawBackdrop 玻璃、同一套按压果冻放大/回弹、同一档尺寸。
+            //   槽宽同步 46 → 44dp（跨页零跳动仍成立：有/无返回键时都占 44dp）。
+            //   ⚠️ 图标色由纯白改为主色 —— 玻璃底是浅色，白图标会看不见。
+            //   ⚠️ **装饰图标徽章**（onBack == null 的 `icon` 分支）**不参与**本次统一：
+            //     它是不可点的页面标识，不是"入口"，改玻璃会让它被误读为按钮（affordance 撒谎）。
+            //     只把尺寸一并对齐到 44dp，保证左端槽宽度恒定。
+            if (onBack != null) {
+                GlassIconButton(
+                    onClick = onBack,
+                    icon = "back",
+                    contentDescription = "返回",
+                    size = if (compact) 36.dp else 44.dp
+                )
+            } else if (icon != null) {
                 Box(
-                    Modifier.size(if (compact) 36.dp else 46.dp).background(Color.White.copy(alpha = 0.18f), CircleShape),
+                    Modifier.size(if (compact) 36.dp else 44.dp)
+                        .background(Color.White.copy(alpha = 0.18f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (onBack != null) {
-                        Box(
-                            Modifier.matchParentSize().clip(CircleShape).clickable(onClick = onBack),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(appPainter("back"), contentDescription = "返回", Modifier.size(22.dp), tint = Color.White)
-                        }
-                    } else {
-                        Icon(icon!!, contentDescription = null, Modifier.size(if (compact) 20.dp else 26.dp), tint = Color.White)
-                    }
+                    Icon(icon, contentDescription = null, Modifier.size(if (compact) 20.dp else 26.dp), tint = Color.White)
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 6.dp)) {
@@ -290,15 +316,22 @@ val screenWpx = with(LocalDensity.current) { LocalConfiguration.current.screenWi
                 //   第 2 行动态行被完全丢弃（实测 OCR 只见「导入教材原文，结构化索」+「引，随备课信封同步」）。
                 //   ⇒ 改为按 '\n' 拆分成多个 Text、每行 maxLines=1：第 2 行必显示；第 1 行超宽则省略号收尾。
                 //   单行调用方（无 '\n'）走同一路径、渲染结果与改造前逐字一致 ⇒ 零回归。
+                // 🔴 2026-09-30 补充（见 `subtitleMaxLines` KDoc）：上述"每行 1 行"对**无硬换行的长文案**
+                //   是过度裁剪 —— 实测把「点此选择目标日，开启备考…」「先选报考学段，只下…」的关键信息切掉。
+                //   ⇒ 无硬换行时默认放宽到 2 行自动折行；有硬换行时维持每行 1 行（零回归）。
                 // subtitle 为空串时整块跳过（否则 split 会产出 [""] 渲染一个空行、白占一行高度）
-                if (subtitle.isNotBlank()) subtitle.split('\n').forEach { line ->
-                    Text(
-                        line,
-                        style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (subtitle.isNotBlank()) {
+                    val subLines = subtitle.split('\n')
+                    val perLine = subtitleMaxLines ?: if (subLines.size > 1) 1 else 2
+                    subLines.forEach { line ->
+                        Text(
+                            line,
+                            style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.9f),
+                            maxLines = perLine,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
             action?.invoke()

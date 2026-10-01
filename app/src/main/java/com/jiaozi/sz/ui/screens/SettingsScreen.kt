@@ -96,7 +96,7 @@ fun SettingsScreen(nav: NavHostController) {
     //    选任一专项 chip 都整体消失且**没有任何 chip 能筛出它**（4 chip 与 4 分组不是一一对应）。
     val filterChips: @Composable RowScope.() -> Unit = {
         listOf("全部", "偏好设置", "数据与同步", "AI 设置", "其他").forEach { g ->
-            FilterChip(selected = groupFilter == g, onClick = { groupFilter = g }, label = { Text(g, fontSize = 12.sp) })
+            FilterChip(selected = groupFilter == g, onClick = { groupFilter = g }, label = { Text(g, fontSize = 13.sp) })
         }
     }
 
@@ -130,7 +130,7 @@ fun SettingsScreen(nav: NavHostController) {
                 .fillMaxWidth()
                 .weight(1f)
                 .verticalScroll(scrollState)
-                .padding(bottom = 76.dp),
+                .padding(bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (groupFilter in listOf("全部", "偏好设置")) {

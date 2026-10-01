@@ -2,6 +2,7 @@ package com.jiaozi.sz.ui.screens
 
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.GroupTitle
@@ -195,7 +196,9 @@ fun MineScreen(nav: NavHostController) {
             //   ⇒ 首屏无可见入口。按 07 号 module_level_notes.overlap_policy
             //   「本页与题库页在资料类入口上刻意重叠，允许重叠」+ E4 spec，在本组补齐；
             //   图标/文案与统计页 E8 入口保持一致（同一功能的入口须同图标同文案）。
-            MineEntry("tree", "知识图谱", "掌握度网状分布", "graph", AppColors.blue)
+            MineEntry("tree", "知识图谱", "掌握度网状分布", "graph", AppColors.blue),
+            // 🔴 2026-09-29：薄弱点攻坚（独立模块，与备课分家；错题复盘与补强入口）
+            MineEntry("target", "薄弱点攻坚", "错题复盘与补强", "weakness", AppColors.danger)
         )
     }
     val dataEntries = remember(backupDesc) {
@@ -237,19 +240,14 @@ fun MineScreen(nav: NavHostController) {
                     immersive = true,
                     statusBarInset = statusBarTop,
                     action = {
-                        // 🔴 2026-09-20 补底圈：本处此前漏写 .background(...)，齿轮裸浮在渐变上，
-                        //    与今日页 / 收集箱 / 校订 / 题库 / 课标库 5 处的「40dp 白 18% 圆底」不一致。
-                        //    图标同步由 22dp 收敛到全局 20dp。
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .clickable { nav.navigate("settings") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(appPainter("gear"), contentDescription = "设置", tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+                        // 🔴 2026-10-01 九校二迭代：Hero 动作键统一为 Liquid Glass 圆钮 44dp
+                        //   （原 40dp 白 18% 圆 + 白图标；改玻璃后图标同步改主色，否则白图标看不见）。
+                        GlassIconButton(
+                            onClick = { nav.navigate("settings") },
+                            icon = "gear",
+                            contentDescription = "设置",
+                            size = 44.dp
+                        )
                     }
                 )
             }
@@ -261,7 +259,7 @@ fun MineScreen(nav: NavHostController) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 76.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──
@@ -281,7 +279,7 @@ fun MineScreen(nav: NavHostController) {
                                 progress = coverage, progressColor = AppColors.blue
                             )
                             StatCard(
-                                icon = "check", value = "${(overall * 100).toInt()}", unit = "%", label = "平均正确率",
+                                icon = "check", value = "${(overall * 100).toInt()}", unit = "%", label = "正确率",
                                 modifier = Modifier.weight(1f),
                                 valueColor = mineAccColor(overall),
                                 iconTint = Color.White, iconBg = AppColors.success, iconShape = CircleShape, iconSize = 22.dp,
@@ -407,7 +405,7 @@ private fun MineToolItem(entry: MineEntry, onClick: () -> Unit) {
                     entry.desc,
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.textSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

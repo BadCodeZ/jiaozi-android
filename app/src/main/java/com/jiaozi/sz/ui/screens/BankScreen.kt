@@ -2,6 +2,7 @@ package com.jiaozi.sz.ui.screens
 
 import com.jiaozi.sz.domain.StatsCalculator
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
@@ -173,16 +174,14 @@ fun BankScreen(nav: NavHostController) {
                 immersive = true,
                 statusBarInset = statusBarTop,
                 action = {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .clickable { nav.navigate("search") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(appPainter("search"), contentDescription = "搜索", tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
+                    // 🔴 2026-10-01 九校二迭代：Hero 动作键统一为 Liquid Glass 圆钮 44dp
+                    //   （原 40dp 白 18% 圆 + 白图标；改玻璃后图标同步改主色）。
+                    GlassIconButton(
+                        onClick = { nav.navigate("search") },
+                        icon = "search",
+                        contentDescription = "搜索",
+                        size = 44.dp
+                    )
                 }
             )
 
@@ -195,7 +194,7 @@ fun BankScreen(nav: NavHostController) {
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 76.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // ── 学科筛选（原固定带件，下沉为滚动区首项）──
@@ -306,7 +305,7 @@ fun BankScreen(nav: NavHostController) {
                                 Modifier
                                     .width(24.dp)
                                     .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(if (selected) AppColors.blue else Color.Transparent)
                             )
                         }

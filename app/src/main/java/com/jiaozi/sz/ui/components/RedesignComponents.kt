@@ -1,5 +1,7 @@
 package com.jiaozi.sz.ui.components
 
+import com.jiaozi.sz.ui.components.AppPalette
+
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -74,7 +76,11 @@ data class AppSemantic(
      *  但 01 号 tokens 漏登记该色、工程内亦无成员 ⇒ 本处补登记（属补漏项，非新增组件）。
      *  色值来源：高保真图 2 左第 4 枚徽章（认知负荷）实色像素高饱和 25% 中位数实测 #1CCCB3，
      *  按本文件既有「设计稿饱和色 → 实现降饱和」口径降到与 blue/purple/danger 同调性。 */
-    val teal: Color
+    val teal: Color,
+    /** 浮空胶囊（CMP-CAPSULE）底色：亮色深药丸 / 暗色浅药丸，保证暗色主题下对比不丢失 */
+    val capsuleBg: Color,
+    /** 浮空胶囊前景（文本）色：亮色白 / 暗色近黑 */
+    val capsuleFg: Color
 )
 
 /**
@@ -90,22 +96,32 @@ data class AppSemantic(
  * 🔴 2026-09-22 杰哥裁定「全站换现在这个蓝」：blue 由 #1A5BB5 提亮为 Hero 主体色 #3B8CF7，与 Theme.primary 恒等。
  */
 val LightSemantic = AppSemantic(
-    success = Color(0xFF2F9E6E), warning = Color(0xFFD98A1F), purple = Color(0xFF7C6BB0), danger = Color(0xFFD64B3F),
-    blue = Color(0xFF3B8CF7), blueLight = Color(0xFFEAF1FE), blueBg = Color(0xFFF1F6FE),
-    purpleBg = Color(0xFFF2F0F8), greenBg = Color(0xFFEDF7F2), redBg = Color(0xFFFCF0EE),
-    bg = Color(0xFFF7F7F7), textPrimary = Color(0xFF1A1A1A), textSecondary = Color(0xFF666666), trackGray = Color(0xFFE8E8E8),
-    warningBg = Color(0xFFFDF6EC),
-    teal = Color(0xFF2AA294)
+    success = AppPalette.c_ff2f9e6e, warning = AppPalette.c_ffd98a1f, purple = AppPalette.c_ff7c6bb0, danger = AppPalette.c_ffd64b3f,
+    blue = AppPalette.c_ff3b8cf7, blueLight = AppPalette.c_ffeaf1fe, blueBg = AppPalette.c_fff1f6fe,
+    purpleBg = AppPalette.c_fff2f0f8, greenBg = AppPalette.c_ffedf7f2, redBg = AppPalette.c_fffcf0ee,
+    bg = AppPalette.c_fff7f7f7, textPrimary = AppPalette.c_ff1a1a1a, textSecondary = AppPalette.c_ff666666, trackGray = AppPalette.c_ffe8e8e8,
+    warningBg = AppPalette.c_fffdf6ec,
+    teal = AppPalette.c_ff2aa294,
+    capsuleBg = AppPalette.c_ff1a1a1a, capsuleFg = Color.White
 )
 
-/** 暗色语义（企鹅蓝提亮版）：蓝族对齐 Theme 暗态 primary(0xFF6E96BF) / primaryContainer(0xFF14334F) */
+/**
+ * 暗色语义（企鹅蓝提亮版）：蓝族对齐 Theme 暗态 primary(0xFF6E96BF) / primaryContainer(0xFF14334F)
+ *
+ * 🔴 2026-10-01 十五校：主色两支随 [com.jiaozi.sz.ui.theme.JiaoziTheme] 的暗态色板同步上移 ——
+ *   `blue` #6E96BF → **#4C9DF8**（= Theme 暗态 primary，始终保持"语义 blue ≡ 主题 primary"这条不变式）；
+ *   `textPrimary` #E0E0E0 → **#F2F2F2**（= 暗态 onSurface）。
+ *   注意：**容器色不动**（blueLight #14334F / blueBg #13283F）—— 它们是「浅蓝底」的暗态对应物，
+ *   底色本就该压深以托住前景；只有"在深底上当前景用"的那两支需要提亮。
+ */
 val DarkSemantic = AppSemantic(
-    success = Color(0xFF4DBE8C), warning = Color(0xFFE0A94A), purple = Color(0xFF9E8FCB), danger = Color(0xFFE97266),
-    blue = Color(0xFF6E96BF), blueLight = Color(0xFF14334F), blueBg = Color(0xFF13283F),
-    purpleBg = Color(0xFF232030), greenBg = Color(0xFF14291F), redBg = Color(0xFF2E1A18),
-    bg = Color(0xFF121212), textPrimary = Color(0xFFE0E0E0), textSecondary = Color(0xFFB0B0B0), trackGray = Color(0xFF2D2D2D),
-    warningBg = Color(0xFF2A2118),
-    teal = Color(0xFF4FC9BA)
+    success = AppPalette.c_ff4dbe8c, warning = AppPalette.c_ffe0a94a, purple = AppPalette.c_ff9e8fcb, danger = AppPalette.c_ffe97266,
+    blue = AppPalette.c_ff4c9df8, blueLight = AppPalette.c_ff14334f, blueBg = AppPalette.c_ff13283f,
+    purpleBg = AppPalette.c_ff232030, greenBg = AppPalette.c_ff14291f, redBg = AppPalette.c_ff2e1a18,
+    bg = AppPalette.c_ff121212, textPrimary = AppPalette.c_fff2f2f2, textSecondary = AppPalette.c_ffb0b0b0, trackGray = AppPalette.c_ff363636,
+    warningBg = AppPalette.c_ff2a2118,
+    teal = AppPalette.c_ff4fc9ba,
+    capsuleBg = AppPalette.c_ffe0e0e0, capsuleFg = AppPalette.c_ff121212
 )
 
 /**
@@ -136,6 +152,9 @@ object AppColors {
     val warningBg get() = if (isDark) D.warningBg else L.warningBg
     /** teal 青蓝（2026-09-20 补登记）：知识卡 menu 类前导徽章 / 文档行 TXT 类型色块 */
     val teal get() = if (isDark) D.teal else L.teal
+    /** 浮空胶囊底色/前景（明暗双态） */
+    val capsuleBg get() = if (isDark) D.capsuleBg else L.capsuleBg
+    val capsuleFg get() = if (isDark) D.capsuleFg else L.capsuleFg
 }
 
 /**
@@ -229,7 +248,7 @@ fun rememberPressFeedback(
  *
  * 三个形态维度（均默认关闭，向后兼容旧调用）：
  *  · [iconBg]     —— 图标徽章底色；null ⇒ 无底色纯图标（旧形态）
- *  · [iconShape]  —— 徽章形状：`CircleShape`（题库/今日 实心圆）/ `RoundedCornerShape(9.dp)`（统计 方徽章）
+ *  · [iconShape]  —— 徽章形状：`CircleShape`（题库/今日 实心圆）/ `RoundedCornerShape(Radius.xs)`（统计 方徽章）
  *  · [containerColor] —— 非 null 时**本卡自带容器**（r20 + padding 14dp），
  *                        页面不再需要私有 shell；浅底色由语义色系给出（blueBg / greenBg / redBg…）
  *
@@ -245,7 +264,7 @@ fun StatCard(
     valueColor: Color = AppColors.textPrimary,
     iconTint: Color = MaterialTheme.colorScheme.primary,
     iconBg: Color? = null,
-    iconShape: Shape = RoundedCornerShape(9.dp),
+    iconShape: Shape = RoundedCornerShape(Radius.xs),
     iconSize: Dp = 28.dp,
     labelInline: Boolean = false,
     containerColor: Color? = null,
@@ -269,7 +288,7 @@ fun StatCard(
                     label,
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.textSecondary,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -282,7 +301,7 @@ fun StatCard(
                 label,
                 style = MaterialTheme.typography.bodySmall,
                 color = AppColors.textSecondary,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -364,7 +383,7 @@ fun StatCardCompact(
         // 🔴 2026-09-22 按 12 号稿校正：标签 10 → **12sp**（稿内实测 ≈14.7sp = 屏宽 3.9%，
         //    真机 10sp = 2.6%，差 47% 超出量测噪声）。取 12sp 同时与 CMP-STATCARD `default`
         //    变体的标签口径（12sp）统一。影响面 = 仅备课组 / 教案模板两页（compact 的唯一调用方）。
-        Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 12.sp, maxLines = 1)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 13.sp, maxLines = 1)
     }
 }
 
@@ -535,7 +554,7 @@ fun QuickActionCard(
             Box(
                 modifier = Modifier
                     .size(38.dp)
-                    .clip(RoundedCornerShape(11.dp))
+                    .clip(RoundedCornerShape(Radius.sm))
                     .background(AppColors.blueLight),
                 contentAlignment = Alignment.Center
             ) {
@@ -618,7 +637,7 @@ fun ChapterRow(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, fontSize = 15.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, fontSize = 16.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Text(percent, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = rankColor, fontSize = 16.sp, maxLines = 1)
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -627,12 +646,12 @@ fun ChapterRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .clip(RoundedCornerShape(3.dp)),
+                        .clip(RoundedCornerShape(4.dp)),
                     color = rankColor,
                     trackColor = AppColors.trackGray
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(detail, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp, maxLines = 1)
+                Text(detail, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp, maxLines = 1)
             }
             Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
         }
@@ -677,7 +696,7 @@ fun SectionTitleDot(
                 trailing,
                 style = MaterialTheme.typography.bodySmall,
                 color = AppColors.textSecondary,
-                fontSize = 12.sp,
+                fontSize = 13.sp,
                 maxLines = 1
             )
         }
@@ -721,7 +740,19 @@ fun NavRowCard(
      */
     containerColor: Color? = null,
     /** chevron 颜色（可选）。默认 null = onSurfaceVariant@40%；模考入口按图用 danger 红。 */
-    chevronTint: Color? = null
+    chevronTint: Color? = null,
+    /**
+     * 🔴 2026-09-30 新增（修实测缺陷：标题被无差别截断）。
+     *
+     * 默认 `1`（既有 20+ 调用点零回归）。今日页任务卡传 `2`：其标题是**完整章节名**
+     * （如「一、教育基础知识和基本原理」14 字），配 titleSmall + 右侧类型角标后
+     * 可用宽仅约 148dp、需约 224dp ⇒ 真机渲染成「一、教育基础知…」，
+     * **用户点进去前不知道练哪一章**。
+     *
+     * ⚠️ 传 2 时该卡会比其他卡高一行（约 22dp）—— 今日任务卡是独立圆角卡、非等高网格，
+     * 以「信息完整」优先于「行高整齐」。
+     */
+    titleMaxLines: Int = 1
 ) {
     // 🔴 2026-09-25 补 CMP-PRESS：04 号 practice.home hf「按压反馈：scaleTo(0.98) + alpha 90%，m.FAST 150ms」
     //    此前全工程 0 处按压缩放（仅 M3 默认 ripple），属规范已写、代码未落地。本件是练习首页 / 题库章节卡
@@ -743,7 +774,7 @@ fun NavRowCard(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .clip(RoundedCornerShape(13.dp))
+                    .clip(RoundedCornerShape(Radius.sm))
                     .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
@@ -759,7 +790,7 @@ fun NavRowCard(
                         title,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = titleMaxLines,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false)
                     )
@@ -792,7 +823,7 @@ fun NavRowCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(3.dp)),
+                            .clip(RoundedCornerShape(4.dp)),
                         color = progressColor,
                         trackColor = AppColors.trackGray
                     )
@@ -846,7 +877,7 @@ fun GroupTitle(text: String, modifier: Modifier = Modifier) {
         Box(
             Modifier
                 .size(width = 3.dp, height = 14.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .clip(RoundedCornerShape(4.dp))
                 .background(AppColors.blue)
         )
         Text(
@@ -1170,7 +1201,7 @@ fun HubChip(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .clip(RoundedCornerShape(13.dp))
+                    .clip(RoundedCornerShape(Radius.sm))
                     .background(AppColors.blueLight),
                 contentAlignment = Alignment.Center
             ) {
@@ -1243,7 +1274,7 @@ fun RecommendCard(
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Icon(appPainter("star"), contentDescription = null, tint = AppColors.warning, modifier = Modifier.size(20.dp))
-                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                     Text(desc, style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary, fontSize = 14.sp)
                 }
@@ -1253,7 +1284,7 @@ fun RecommendCard(
                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                 ) {
-                    Text(buttonText, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text(buttonText, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(appPainter("chevron"), contentDescription = null, modifier = Modifier.size(16.dp))
                 }
@@ -1290,7 +1321,7 @@ fun IconBadge(
     bg: Color,
     modifier: Modifier = Modifier,
     size: Dp = 28.dp,
-    shape: Shape = RoundedCornerShape(9.dp),
+    shape: Shape = RoundedCornerShape(Radius.xs),
     iconTint: Color = Color.White
 ) {
     Box(

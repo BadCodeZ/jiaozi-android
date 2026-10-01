@@ -1,6 +1,7 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.hubDragToScroll
@@ -177,26 +178,21 @@ fun KnowledgeScreen(nav: NavHostController) {
                         //    「从知识库切换到图谱视图（two_views_one_source 的知识库侧入口）」，
                         //    高保真图未覆盖落位 ⇒ 按规范推断的「hero 右上并列小键」实现。
                         //    此前本页无 navigate("graph")，唯一入口在 StatsScreen:234/440，属单向可达。
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .clickable { nav.navigate("graph") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(appPainter("graph"), contentDescription = "知识图谱", tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .clickable { searchFocus.requestFocus() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(appPainter("search"), contentDescription = "搜索知识卡", tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+                        // 🔴 2026-10-01 九校二迭代：Hero 右上两枚动作键统一为 Liquid Glass 圆钮 44dp。
+                        //   ⚠️ 形状一并由 `RoundedCornerShape(12.dp)`（圆角方形）**改为正圆** ——
+                        //   杰哥要求的是"统一的液化玻璃材质 + 统一大小"，形状不同会破坏同一族识别。
+                        GlassIconButton(
+                            onClick = { nav.navigate("graph") },
+                            icon = "graph",
+                            contentDescription = "知识图谱",
+                            size = 44.dp
+                        )
+                        GlassIconButton(
+                            onClick = { searchFocus.requestFocus() },
+                            icon = "search",
+                            contentDescription = "搜索知识卡",
+                            size = 44.dp
+                        )
                     }
                 }
             )

@@ -1,6 +1,7 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.HeroHeader
@@ -148,16 +149,14 @@ fun ProofScreen(nav: NavHostController) {
                 // 否则「磨砂白圆 + 标题胶囊」会正好压在本行的 46dp 图标徽章上（2026-09-19 实测）。
                 onBack = { nav.navigateUp() },
                 action = {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .clickable { nav.navigate("search") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(appPainter("search"), contentDescription = "搜索", tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
+                    // 🔴 2026-10-01 九校二迭代：Hero 动作键统一为 Liquid Glass 圆钮 44dp
+                    //   （原 40dp 白 18% 圆 + 白图标；改玻璃后图标同步改主色）。
+                    GlassIconButton(
+                        onClick = { nav.navigate("search") },
+                        icon = "search",
+                        contentDescription = "搜索",
+                        size = 44.dp
+                    )
                 }
             )
 
@@ -351,7 +350,7 @@ private fun ProofCard(q: Question, appVm: AppViewModel, repo: com.jiaozi.sz.data
         ) {
             // 前导图标：36dp 浅蓝底圆角方块 + 蓝 menu 图标
             Box(
-                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.blueBg),
+                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.blueBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(appPainter("menu"), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(20.dp))
@@ -372,7 +371,7 @@ private fun ProofCard(q: Question, appVm: AppViewModel, repo: com.jiaozi.sz.data
                         q.chapter.takeIf { it.isNotBlank() }
                     )
                         .joinToString(" · ").ifBlank { "未分类" },
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     color = AppColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -532,7 +531,7 @@ private fun WrongBookTab(
                                             style = MaterialTheme.typography.labelMedium,
                                             color = MaterialTheme.colorScheme.onErrorContainer,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp
+                                            fontSize = 13.sp
                                         )
                                     }
                                     Text(
@@ -572,7 +571,7 @@ private fun WrongBookTab(
                                 }
                                 // 错因：辅助信息（中性小字，仅在确有标记时显示；未标记不占位）
                                 p.cause?.takeIf { it.isNotBlank() }?.let { c ->
-                                    Text("错因：$c", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                                    Text("错因：$c", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     // ── 🔴 2026-09-25 G1 落地：「已掌握 / 重练」双键 ──

@@ -31,7 +31,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -61,6 +60,7 @@ import com.jiaozi.sz.ui.LocalPracticeVm
 import com.jiaozi.sz.ui.PracticeViewModel
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.AppColors
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.PrefChipGroup
@@ -130,6 +130,12 @@ fun PracticeSetupScreen(nav: NavHostController) {
     Column(
         Modifier
             .fillMaxSize()
+            // 🔴 2026-10-01 九校：本页已登记进 `selfBackRoutes`（自带顶栏关闭键）⇒ AppRoot
+            //   **不再**为本页垫 56dp 的悬浮返回件留白，顶栏上移到状态栏正下方。
+            //   ⚠️ 这里**不要**再加 `statusBarsPadding()` —— AppRoot 的 Scaffold 顶栏
+            //   （`windowInsetsTopHeight(statusBars ∪ cutout)`）已经把状态栏高度算进 `inner.top`，
+            //   内容层整体吃过 `padding(inner)`；再避让一次会**双重缩进**（实测顶栏被压低 135px≈49dp，
+            //   ✕ 中心从应有的 209px 掉到 344px）。省下的间距由顶栏自身 14dp 内距提供。
             .background(AppColors.bg)
     ) {
         // ── 顶栏 ──
@@ -138,9 +144,19 @@ fun PracticeSetupScreen(nav: NavHostController) {
             Arrangement.SpaceBetween,
             Alignment.CenterVertically
         ) {
-            IconButton(onClick = { nav.popBackStack() }) {
-                Icon(appPainter("close"), contentDescription = "关闭", tint = AppColors.textPrimary, modifier = Modifier.size(22.dp))
-            }
+            // 🔴 2026-10-01 九校：关闭键统一为 Liquid Glass 玻璃钮（同一套材质/交互/动画）。
+            //   取 44dp —— 右侧占位 `Spacer(44.dp)` 本就是按 44dp 圆钮的对称位留的，
+            //   原 IconButton 默认 48dp 实际比占位宽 4dp（标题因此略偏左），本次顺带对齐。
+            //   🔴 2026-10-01 十五校：本页原是全站**唯一**一处显式传 `tint = AppColors.textPrimary`
+            //     的调用点（九校时其余调用点都默认走了主色，只有这里避开了）—— 说明「圆钮不该用主色」
+            //     这条判断早就独立出现过一次。十五校把默认值本身改成 `onSurface` 后，本行显式传参
+            //     已与默认值同义，删掉即可（少一处特例 = 少一处将来漏改的地方）。
+            GlassIconButton(
+                onClick = { nav.popBackStack() },
+                icon = "close",
+                contentDescription = "关闭",
+                size = 44.dp
+            )
             Text("练习设置", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(44.dp))
         }
@@ -174,7 +190,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                         Box(
                             Modifier.weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (sel) AppColors.blue else Color.White)
+                                .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { appVm.setExamStage(value) }
                                 .padding(vertical = 12.dp),
                             contentAlignment = Alignment.Center
@@ -190,7 +206,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.textSecondary,
-                    fontSize = 12.sp
+                    fontSize = 13.sp
                 )
             }
 
@@ -205,7 +221,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                         Box(
                             Modifier.weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (sel) AppColors.blue else Color.White)
+                                .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable {
                                     subj = s
                                     if (s != "科三") selected = emptySet()
@@ -247,7 +263,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                         // 🔴 2026-09-24 对齐 AppChips 契约：未选＝surfaceVariant（原为纯白 Color.White，
                         //    与全局 chip「未选＝surfaceVariant 无边框」不一致）。选中＝分段型 primaryContainer 浅蓝底 + primary 字。
                         Box(
-                            Modifier.weight(1f).clip(RoundedCornerShape(10.dp))
+                            Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
                                 .background(if (num == q) AppColors.blueLight else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { num = q }.padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -326,7 +342,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(st.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-                                    Text("已练 ${st.practiced}/${st.total} · 正确率 ${st.acc}%", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                                    Text("已练 ${st.practiced}/${st.total} · 正确率 ${st.acc}%", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
                                     Spacer(Modifier.height(4.dp))
                                     Box(
                                         Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(999.dp))
@@ -376,7 +392,7 @@ fun PracticeSetupScreen(nav: NavHostController) {
                 nav.popBackStack()
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(52.dp),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue)
         ) {
             Icon(appPainter("play"), contentDescription = null, modifier = Modifier.size(20.dp))
@@ -398,7 +414,7 @@ private data class ChapterStat(
 private fun SetupSection(title: String, extra: String? = null, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             if (extra != null) Text(extra, style = MaterialTheme.typography.bodySmall, color = AppColors.blue, fontWeight = FontWeight.Medium)
         }
         content()
@@ -410,7 +426,7 @@ private fun SwitchRow(title: String, desc: String, checked: Boolean, onCheckedCh
     Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-            Text(desc, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+            Text(desc, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
         }
         Switch(
             checked = checked,

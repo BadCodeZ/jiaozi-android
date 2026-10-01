@@ -1,5 +1,7 @@
 package com.jiaozi.sz.xiaomi
 
+import com.jiaozi.sz.ui.components.AppPalette
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -195,7 +197,7 @@ class FloatingIslandService : Service(), LifecycleOwner {
     private fun IslandContent(state: IslandState?) {
         if (state == null) return
         var expanded by remember { mutableStateOf(false) }
-        val bg = Color(0xFF1C1C1E)
+        val bg = AppPalette.c_ff1c1c1e
         Column(
             modifier = Modifier
                 .padding(4.dp)
@@ -207,7 +209,7 @@ class FloatingIslandService : Service(), LifecycleOwner {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // leading 状态点：借鉴开源 Dynamic Island 的常驻指示灯
-                Box(Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF4CAF50)))
+                Box(Modifier.size(8.dp).clip(CircleShape).background(AppPalette.c_ff4caf50))
                 androidx.compose.material3.Text(state.title, color = Color.White, fontSize = 13.sp)
             }
             Spacer(Modifier.height(2.dp))
@@ -216,13 +218,13 @@ class FloatingIslandService : Service(), LifecycleOwner {
                 Spacer(Modifier.height(6.dp))
                 Box(
                     Modifier.fillMaxWidth(0.7f).height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
+                        .clip(RoundedCornerShape(4.dp))
                         .background(Color.White.copy(alpha = 0.22f))
                 ) {
                     Box(
                         Modifier.fillMaxWidth(state.progress).height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color(0xFF4CAF50))
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(AppPalette.c_ff4caf50)
                     )
                 }
             }

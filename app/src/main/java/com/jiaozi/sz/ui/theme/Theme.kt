@@ -1,5 +1,7 @@
 package com.jiaozi.sz.ui.theme
 
+import com.jiaozi.sz.ui.components.AppPalette
+
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -14,9 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jiaozi.sz.ui.components.AppColors
@@ -39,82 +43,110 @@ private val HyperLight = lightColorScheme(
     //    Hero 渐变主体色 #3B8CF7（稿内实测 (59,140,247)）⇒ 全站按钮/chip/选中态与 Hero 同色，视觉一蓝。
     //    更早沿革：2026-09-19 曾按高保真稿把 #305070（H206 S40 L31，偏灰暗）校正为 #1A5BB5。
     //    浅蓝底 primaryContainer 仍为 #EAF1FE（未在本次裁定范围内）。
-    primary = Color(0xFF3B8CF7),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFEAF1FE),
-    onPrimaryContainer = Color(0xFF0B2E5C),
-    secondary = Color(0xFFE6E6E6),
-    onSecondary = Color(0xFF000000),
+    primary = AppPalette.c_ff3b8cf7,
+    onPrimary = Color.White,
+    primaryContainer = AppPalette.c_ffeaf1fe,
+    onPrimaryContainer = AppPalette.c_ff0b2e5c,
+    secondary = AppPalette.c_ffe6e6e6,
+    onSecondary = Color.Black,
     // 🔴 2026-09-21 按高保真稿校正（11/12/13/08 号「筛选 chips」）：M3 FilterChip 选中态容器取
     //    secondaryContainer。原值 #F0F0F0 灰 ⇒ 全站选中 chip 呈灰底（设置/备课组/教案模板/搜索…），
     //    与稿实测「选中 = 企鹅蓝实底白字、未选 = 浅灰底」不符，也与 13 号知识库显式 blue 口径不一致。
     //    统一为 primary 蓝 / onPrimary 白字。secondaryContainer 仅被 FilterChip 消费，无其他组件引用。
     // 🔴 2026-09-22 随主色提亮：同步 #1A5BB5 → #3B8CF7，保持 FilterChip 选中态与 primary 恒等。
-    secondaryContainer = Color(0xFF3B8CF7),
-    onSecondaryContainer = Color(0xFFFFFFFF),
-    tertiary = Color(0xFF7090B0),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFF0F0F0),
-    onTertiaryContainer = Color(0xFF000000),
-    error = Color(0xFFE94634),
-    onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFDF6F4),
-    onErrorContainer = Color(0xFF410002),
-    background = Color(0xFFF7F7F7),
-    onBackground = Color(0xFF1A1A1A),
-    surface = Color(0xFFF7F7F7),
-    onSurface = Color(0xFF1A1A1A),
-    surfaceVariant = Color(0xFFEFEFEF),
-    onSurfaceVariant = Color(0xFF666666),
-    surfaceContainerLowest = Color(0xFFFFFFFF),
-    surfaceContainerLow = Color(0xFFF2F2F2),
-    surfaceContainer = Color(0xFFFFFFFF),
-    surfaceContainerHigh = Color(0xFFE8E8E8),
-    surfaceContainerHighest = Color(0xFFE8E8E8),
-    outline = Color(0xFFD9D9D9),
-    outlineVariant = Color(0xFFECECEC),
-    inverseSurface = Color(0xFF000000),
-    inverseOnSurface = Color(0xFFFFFFFF),
-    inversePrimary = Color(0xFF5070B0),
-    scrim = Color(0x52000000)
+    secondaryContainer = AppPalette.c_ff3b8cf7,
+    onSecondaryContainer = Color.White,
+    tertiary = AppPalette.c_ff7090b0,
+    onTertiary = Color.White,
+    tertiaryContainer = AppPalette.c_fff0f0f0,
+    onTertiaryContainer = Color.Black,
+    error = AppPalette.c_ffe94634,
+    onError = Color.White,
+    errorContainer = AppPalette.c_fffdf6f4,
+    onErrorContainer = AppPalette.c_ff410002,
+    background = AppPalette.c_fff7f7f7,
+    onBackground = AppPalette.c_ff1a1a1a,
+    surface = AppPalette.c_fff7f7f7,
+    onSurface = AppPalette.c_ff1a1a1a,
+    surfaceVariant = AppPalette.c_ffefefef,
+    onSurfaceVariant = AppPalette.c_ff666666,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = AppPalette.c_fff2f2f2,
+    surfaceContainer = Color.White,
+    surfaceContainerHigh = AppPalette.c_ffe8e8e8,
+    surfaceContainerHighest = AppPalette.c_ffe8e8e8,
+    outline = AppPalette.c_ffd9d9d9,
+    outlineVariant = AppPalette.c_ffececec,
+    inverseSurface = Color.Black,
+    inverseOnSurface = Color.White,
+    inversePrimary = AppPalette.c_ff5070b0,
+    scrim = AppPalette.c_52000000
 )
 
 // —— 企鹅蓝主色（暗）——
 private val HyperDark = darkColorScheme(
-    primary = Color(0xFF6E96BF),
-    onPrimary = Color(0xFF071B2E),
-    primaryContainer = Color(0xFF14334F),
-    onPrimaryContainer = Color(0xFFD6E6F2),
-    secondary = Color(0xFF505050),
-    onSecondary = Color(0xFFFFFFFF),
+    // 🔴🔴 2026-10-01 十五校（杰哥：「参考 UFIPanel 的深色模式进行优化我的深色模式」）：
+    //   **暗态主色由 #6E96BF（灰蓝，饱和 81/255）提为 #4C9DF8（鲜蓝，饱和 172/255）**。
+    //
+    // 实证（真机截图逐像素 vs UFIPanel 深色参考图）：
+    //   · 参考图底部导航「选中」图标实测 **#267AF7**（饱和 **209/255**）、右上圆钮图标中性灰；
+    //   · 本工程暗态导航「选中」图标实测 **#6E96BF**（饱和 **仅 81**）—— 也就是本色的直接投影。
+    //   ⇒ 暗态全站蓝色元素（选中导航项 / chip 选中 / 进度 / Hero 徽章…）都蒙着一层灰，
+    //     整屏读起来"发闷"，这正是与参考图最大的单点差异。
+    //
+    // 取值：#4C9DF8 = 参考蓝的同族，按本工程暗底 #121212 收敛亮度 ——
+    //   对比度 **6.68:1**（原 #6E96BF 6.05:1，参考 #267AF7 on #000 5.18:1）⇒ 明亮但不刺眼；
+    //   色相与浅色档 #3B8CF7 同族 ⇒ 「全站一蓝」跨明暗依然成立（不再出现"浅色是鲜蓝、深色是灰蓝"）。
+    primary = AppPalette.c_ff4c9df8,
+    onPrimary = AppPalette.c_ff071b2e,
+    primaryContainer = AppPalette.c_ff14334f,
+    onPrimaryContainer = AppPalette.c_ffd6e6f2,
+    secondary = AppPalette.c_ff505050,
+    onSecondary = Color.White,
     // 同亮色：选中 chip 容器对齐暗态 primary 蓝（onPrimary 深字，保证对比）
-    secondaryContainer = Color(0xFF6E96BF),
-    onSecondaryContainer = Color(0xFF071B2E),
-    tertiary = Color(0xFF84A6C8),
-    onTertiary = Color(0xFF000000),
-    tertiaryContainer = Color(0xFF2C2C2C),
-    onTertiaryContainer = Color(0xFFE0E0E0),
-    error = Color(0xFFFF6B61),
-    onError = Color(0xFF000000),
-    errorContainer = Color(0xFF2E0603),
-    onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF121212),
-    onBackground = Color(0xFFE0E0E0),
-    surface = Color(0xFF121212),
-    onSurface = Color(0xFFE0E0E0),
-    surfaceVariant = Color(0xFF1F1F1F),
-    onSurfaceVariant = Color(0xFFB0B0B0),
-    surfaceContainerLowest = Color(0xFF000000),
-    surfaceContainerLow = Color(0xFF121212),
-    surfaceContainer = Color(0xFF1A1A1A),
-    surfaceContainerHigh = Color(0xFF242424),
-    surfaceContainerHighest = Color(0xFF2D2D2D),
-    outline = Color(0xFF404040),
-    outlineVariant = Color(0xFF2A2A2A),
-    inverseSurface = Color(0xFFFFFFFF),
-    inverseOnSurface = Color(0xFF000000),
-    inversePrimary = Color(0xFF9DBBDA),
-    scrim = Color(0x52000000)
+    secondaryContainer = AppPalette.c_ff4c9df8,
+    onSecondaryContainer = AppPalette.c_ff071b2e,
+    tertiary = AppPalette.c_ff84a6c8,
+    onTertiary = Color.Black,
+    tertiaryContainer = AppPalette.c_ff2c2c2c,
+    onTertiaryContainer = AppPalette.c_ffe0e0e0,
+    error = AppPalette.c_ffff6b61,
+    onError = Color.Black,
+    errorContainer = AppPalette.c_ff2e0603,
+    onErrorContainer = AppPalette.c_ffffdad6,
+    background = AppPalette.c_ff121212,
+    // 🔴 2026-10-01 十五校：暗态前景由 #E0E0E0 提到 **#F2F2F2**。
+    //   实测依据：参考图深色导航「未选中」图标/文字 = **#F2F2F2**，本工程同位置 = #E0E0E0（亮 18 阶差）。
+    //   对比度复核：onSurface(#F2F2F2) / surface(#121212) = **16.7:1**、
+    //   onSurface(#F2F2F2) / surfaceContainer(#242424) = **14.0:1** ⇒ 远高于 AA，安全。
+    onBackground = AppPalette.c_fff2f2f2,
+    surface = AppPalette.c_ff121212,
+    onSurface = AppPalette.c_fff2f2f2,
+    surfaceVariant = AppPalette.c_ff1f1f1f,
+    onSurfaceVariant = AppPalette.c_ffb0b0b0,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = AppPalette.c_ff121212,
+    // 🔴 2026-10-01 十五校：**卡片层次整体上移一档**（唯一改动 = 三个 surfaceContainer 档）。
+    //   实证（真机截图 vs 参考图量测）：
+    //     参考图「页底→卡片」反差 = #000000 → #242424 = **36 阶**（卡片一眼起层）；
+    //     本工程「页底→卡片」反差 = #121212 → #1A1A1A = **仅 8 阶**（卡片几乎糊在页底上，
+    //     只能靠 outlineVariant 发丝边勾轮廓）—— 这是与参考图第二个单点差异。
+    //   修法：卡片取参考图的**同一个色值** #242424（页底保持不变 #121212 ⇒ 反差 8→**18**，
+    //   提升 2.25×；不把页底压到纯黑是为了不推翻全站既有暗色基线）。
+    //   高/最高两档同步递推 +8，保持三档之间的原有间距（8/8）不变。
+    surfaceContainer = AppPalette.c_ff242424,
+    surfaceContainerHigh = AppPalette.c_ff2c2c2c,
+    surfaceContainerHighest = AppPalette.c_ff363636,
+    outline = AppPalette.c_ff404040,
+    // 🔴 2026-10-01 十五校：随卡片层次联动（#2A2A2A → #333333）。
+    //   outlineVariant 的唯一职责是「在容器上画出看得见的线」（全站 16 处：设置项分隔、
+    //   列表行分隔、目录列竖线、图表"无数据"色）。卡片底 +8 之后，旧的 #2A2A2A 与卡片
+    //   只剩 6 阶差 ⇒ 这些线会集体消失。取「新卡片底 + 15」把原有可见度原样搬过来。
+    outlineVariant = AppPalette.c_ff333333,
+    inverseSurface = Color.White,
+    inverseOnSurface = Color.Black,
+    inversePrimary = AppPalette.c_ff9dbbda,
+    scrim = AppPalette.c_52000000
 )
 
 /**
@@ -158,7 +190,7 @@ private val HyperShapes = androidx.compose.material3.Shapes(
  */
 object AppGradients {
     fun hero(dark: Boolean): Brush = if (dark)
-        Brush.linearGradient(listOf(Color(0xFF14375F), Color(0xFF2A5B96)))
+        Brush.linearGradient(listOf(AppPalette.c_ff14375f, AppPalette.c_ff2a5b96))
     else
         // 🔴 2026-09-22 按 12 号备课组稿 / 教案模板稿**双页像素实证**重校（杰哥裁定「改稿的亮蓝」）：
         //    ① 色值整体提高一档明度 —— 两稿主体实测 (58~92,138~168,244~250)，即 #3C8DF6 亮天蓝；
@@ -169,7 +201,7 @@ object AppGradients {
         //    ③ 端点对齐稿内实测两端：亮端 #5EA8FB（稿左端实测 (96,166,251)）
         //       / 暗端 #3B8CF7（稿主体实测 (59,140,247)）。首版取 #5AA2F1/#3A83E0
         //       时右端 B 通道偏低 22（渲染 (61,134,225) vs 稿 (59,140,247)，偏灰），故上调。
-        Brush.linearGradient(listOf(Color(0xFF5EA8FB), Color(0xFF3B8CF7)))
+        Brush.linearGradient(listOf(AppPalette.c_ff5ea8fb, AppPalette.c_ff3b8cf7))
 }
 
 /**
@@ -181,6 +213,24 @@ object AppGradients {
  * 任何需要按明暗分支取色的组件都应读这个 Local。
  */
 val LocalAppDark = compositionLocalOf { false }
+
+/**
+ * 字体缩放护栏常量（2026-09-30 依用户实测反馈确立）。
+ *
+ * 🔴 背景（真实缺陷）：[scaleTypography] 只放大 Typography 的 fontSize/lineHeight，
+ *    而 `sp` 在实际布局中还会再乘一次 [LocalDensity.fontScale]（即系统「字体大小」设置）。
+ *    两者**相乘**：系统 1.3 × App 默认 lg 1.12 = 1.456；系统 2.0 × xl 1.28 = 2.56。
+ *    而大量容器是**定高**的（`height(52.dp)` 主按钮 / Hero 定高 / `size(20.dp)` 图标），
+ *    字号成倍放大、容器不放大 ⇒ 文字必然撑破容器（用户反馈「怎么你那显示那么大」的真因）。
+ *
+ * 护栏策略（保守、不剥夺可达性）：
+ * - 系统缩放钳到 [MIN_SYS_FONT_SCALE] ~ [MAX_SYS_FONT_SCALE]（0.85 ~ 1.15），
+ *   即允许用户在系统设置里做 ±15% 微调，但不允许系统档位把整站撑爆；
+ * - 系统缩放 × App 档位的**总倍率**封顶 [MAX_TOTAL_FONT_SCALE]（1.60），确保极限组合下仍有可控布局。
+ */
+private const val MIN_SYS_FONT_SCALE = 0.85f
+private const val MAX_SYS_FONT_SCALE = 1.15f
+private const val MAX_TOTAL_FONT_SCALE = 1.60f
 
 @Composable
 fun JiaoziTheme(
@@ -204,6 +254,14 @@ fun JiaoziTheme(
         "xl" -> 1.28f
         else -> 1f
     }
+    // 🔴 字体缩放护栏：Typography 已乘过 `scale`，故交给 LocalDensity 的系数要「除回去」，
+    //    使最终生效倍率 = 钳制后的系统缩放（并保证总倍率不超上限），而非与 App 档位相乘。
+    val srcDensity = LocalDensity.current
+    val sysClamped = srcDensity.fontScale.coerceIn(MIN_SYS_FONT_SCALE, MAX_SYS_FONT_SCALE)
+    val effectiveFontScale =
+        if (sysClamped * scale > MAX_TOTAL_FONT_SCALE) MAX_TOTAL_FONT_SCALE / scale else sysClamped
+    val guardedDensity = Density(density = srcDensity.density, fontScale = effectiveFontScale)
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = if (scale == 1f) HyperTypography else scaleTypography(HyperTypography, scale),
@@ -212,7 +270,10 @@ fun JiaoziTheme(
         // 语义辅助色（状态色 / 文本色 / 背景色）随明/暗主题切换，保证暗色下文字与卡片对比度合规
         AppColors.isDark = darkTheme
         // 供深层组件读取「应用主题」明暗（非系统值），用于渐变 / 状态色分支
-        CompositionLocalProvider(LocalAppDark provides darkTheme) {
+        CompositionLocalProvider(
+            LocalAppDark provides darkTheme,
+            LocalDensity provides guardedDensity
+        ) {
             content()
         }
     }

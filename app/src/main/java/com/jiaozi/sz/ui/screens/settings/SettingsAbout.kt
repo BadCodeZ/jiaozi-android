@@ -67,7 +67,7 @@ fun AboutScreen() {
     }
 
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = 76.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).padding(bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 标题栏已移除（P2 清理）：about 路由处于 showFloating 集合内，全局悬浮返回键已提供

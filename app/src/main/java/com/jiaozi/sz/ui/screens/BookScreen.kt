@@ -74,6 +74,7 @@ import com.jiaozi.sz.ui.components.hubDragToScroll
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.SectionTitle
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.formatDocSize
 import com.jiaozi.sz.ui.screens.lesson.SegmentedRow
 import com.jiaozi.sz.util.toIsoDate
@@ -208,7 +209,7 @@ fun BookScreen(nav: NavHostController) {
     // 学段筛选 chips：固定带内一行横向滚动（2026-09-25 晚：原「两态互斥渲染」已随折叠退场取消）
     val gradeChips: @Composable RowScope.() -> Unit = {
         (listOf("全部") + LessonDims.GRADE).forEach { g ->
-            FilterChip(selected = filter == g, onClick = { filter = g }, label = { Text(g, fontSize = 12.sp) })
+            FilterChip(selected = filter == g, onClick = { filter = g }, label = { Text(g, fontSize = 13.sp) })
         }
     }
 
@@ -244,28 +245,19 @@ fun BookScreen(nav: NavHostController) {
                 //    及 08 号 F1「40dp」均不符，且与知识库页不同构。
                 //    正解＝两层结构：外层 48dp 只承担触控区（满足 01 号 `sz.touch_target_min = 44dp`），
                 //    内层 40dp 承担视觉圆底 ⇒ 视觉尺寸与规范精确一致，触控区不回退。
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clickable {
-                            picker.launch(arrayOf("application/pdf", "text/plain", "text/markdown", "text/x-markdown"))
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            appPainter("upload"),
-                            contentDescription = "导入教材",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                // 🔴 2026-10-01 九校二迭代：统一为 Liquid Glass 圆钮 44dp。
+                //   旧形态是「外层 48dp 触控区 + 内层 40dp 白 18% 视觉圆」的两层结构
+                //   （历史原因：M3 IconButton 会把 size(40dp) 顶到 48dp，故手工拆两层）。
+                //   改玻璃后单层即够：44dp 同时满足「视觉尺寸统一」与「触控区 ≥ 44dp」，
+                //   不再需要外层容器 ⇒ 结构从两层降为一层，也顺带修掉内层图标 20dp 的散落值。
+                GlassIconButton(
+                    onClick = {
+                        picker.launch(arrayOf("application/pdf", "text/plain", "text/markdown", "text/x-markdown"))
+                    },
+                    icon = "upload",
+                    contentDescription = "导入教材",
+                    size = 44.dp
+                )
             }
         )
         }
@@ -468,10 +460,10 @@ private fun BookRowFor(e: BookEntity, onDelete: () -> Unit, onClick: () -> Unit,
         highlighted = highlighted,
         leading = {
             Box(
-                Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(blockBg),
+                Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(blockBg),
                 contentAlignment = Alignment.Center
             ) {
-                Text(ext.uppercase().take(4), color = blockFg, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text(ext.uppercase().take(4), color = blockFg, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
         }
     )
@@ -520,7 +512,7 @@ private fun BookDetail(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             GlassBackButton(onClick = onBack)
-            Text("教材详情", fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1, modifier = Modifier.weight(1f))
+            Text("教材详情", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1, modifier = Modifier.weight(1f))
         }
 
         Column(
@@ -533,13 +525,13 @@ private fun BookDetail(
             ) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     Box(
-                        Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(blockBg),
+                        Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(blockBg),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(ext.uppercase().take(4), color = blockFg, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(ext.uppercase().take(4), color = blockFg, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text(book.book.ifBlank { "(未命名教材)" }, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(book.book.ifBlank { "(未命名教材)" }, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text("作者：${book.author.ifBlank { "—" }}", fontSize = 13.sp, color = AppColors.textSecondary)
                     }
                     Box(Modifier.clip(RoundedCornerShape(50)).background(badgeBg).padding(horizontal = 8.dp, vertical = 3.dp)) {
@@ -574,7 +566,7 @@ private fun BookDetail(
             // ── E4 本书条目清单（圆形序号位 + 查看全部）──
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("本书条目（${sameBookItems.size}）", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = AppColors.textPrimary, modifier = Modifier.weight(1f))
+                    Text("本书条目（${sameBookItems.size}）", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = AppColors.textPrimary, modifier = Modifier.weight(1f))
                     // 行内文字键「查看全部」（primary 13sp，触控 ≥44dp）
                     Box(Modifier.heightIn(min = 44.dp).clickable { onRead() }, contentAlignment = Alignment.Center) {
                         Text("查看全部", fontSize = 13.sp, color = AppColors.blue)
@@ -605,7 +597,7 @@ private fun BookDetail(
                                 }
                                 Text(
                                     listOf(e.unit, e.lesson).map { it.trim() }.filter { it.isNotBlank() }.joinToString(" · ").ifBlank { "正文" },
-                                    fontSize = 15.sp, color = AppColors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
+                                    fontSize = 16.sp, color = AppColors.textPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
                                 )
                                 Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
                             }
@@ -617,15 +609,15 @@ private fun BookDetail(
             // ── E5 删除本书（危险操作：danger 描边、透明底、置底）──
             Box(
                 Modifier.fillMaxWidth().height(52.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(Color.Transparent)
-                    .border(1.dp, AppColors.danger, RoundedCornerShape(14.dp))
+                    .border(1.dp, AppColors.danger, RoundedCornerShape(16.dp))
                     .clickable { confirmDelete = true },
                 contentAlignment = Alignment.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(appPainter("trash"), contentDescription = null, tint = AppColors.danger, modifier = Modifier.size(16.dp))
-                    Text("删除本书", color = AppColors.danger, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text("删除本书", color = AppColors.danger, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                 }
             }
             Spacer(Modifier.height(4.dp))
@@ -634,7 +626,7 @@ private fun BookDetail(
             Button(
                 onClick = onRead,
                 modifier = Modifier.fillMaxWidth().navigationBarsPadding().height(50.dp),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue)
             ) {
                 Icon(appPainter("book"), contentDescription = null, modifier = Modifier.size(18.dp))
@@ -677,7 +669,7 @@ private fun BookLinkRow(icon: String, title: String, desc: String, onClick: () -
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // 42dp 图标底衬（blueLight 底 + primary link 图标）
@@ -685,8 +677,8 @@ private fun BookLinkRow(icon: String, title: String, desc: String, onClick: () -
                 Icon(appPainter(icon), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(20.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                Text(desc, fontSize = 12.sp, color = AppColors.textSecondary)
+                Text(title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(desc, fontSize = 13.sp, color = AppColors.textSecondary)
             }
             Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
         }

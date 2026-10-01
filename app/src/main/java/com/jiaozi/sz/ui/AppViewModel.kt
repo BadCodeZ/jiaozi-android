@@ -8,6 +8,7 @@ import com.jiaozi.sz.data.AppRepository
 import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.data.ChapterCfg
 import com.jiaozi.sz.data.MetaKeys
+import com.jiaozi.sz.data.model.LessonFields
 import com.jiaozi.sz.data.model.LessonTemplate
 import com.jiaozi.sz.data.Repository
 import com.jiaozi.sz.data.local.ProgressEntity
@@ -24,6 +25,19 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import com.jiaozi.sz.util.todayIso
 import com.jiaozi.sz.util.yesterdayIso
+
+/**
+ * 薄弱点攻坚笔记种子：练习结算页「错题生成攻坚笔记」注入 WeaknessScreen 编辑器。
+ * 与备课（LessonFields 十二要素）彻底分家——攻坚笔记是轻量「标题 + 科目 + 正文」结构，
+ * 不需要教案骨架；故用独立载体跨导航传递，编辑器直接预填。
+ */
+data class PendingWeaknessSeed(
+    val title: String,
+    val subject: String = "",
+    val disc: String = "",
+    val body: String = "",
+    val fromExamId: String = ""
+)
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val repo: AppRepository = (app as App).repository
@@ -101,6 +115,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val pendingProofTab: StateFlow<String?> = _pendingProofTab.asStateFlow()
     fun setPendingProofTab(tab: String) { _pendingProofTab.value = tab }
     fun clearPendingProofTab() { _pendingProofTab.value = null }
+
+    /**
+     * 🔴 2026-09-30（薄弱点攻坚独立模块）：练习结算页「生成攻坚笔记」把错题归集预填为
+     * `PendingWeaknessSeed`，经本 pending 意图跨导航注入 WeaknessScreen 编辑器。
+     * 落点 = `WeaknessScreen` 的 LaunchedEffect（消费后清空）。与备课模块完全解耦。
+     */
+    private val _pendingWeaknessSeed = MutableStateFlow<PendingWeaknessSeed?>(null)
+    val pendingWeaknessSeed: StateFlow<PendingWeaknessSeed?> = _pendingWeaknessSeed.asStateFlow()
+    fun setPendingWeaknessSeed(f: PendingWeaknessSeed?) { _pendingWeaknessSeed.value = f }
+    fun clearPendingWeaknessSeed() { _pendingWeaknessSeed.value = null }
 
     private val _theme = MutableStateFlow("system") // system / light / dark
     val theme: StateFlow<String> = _theme.asStateFlow()

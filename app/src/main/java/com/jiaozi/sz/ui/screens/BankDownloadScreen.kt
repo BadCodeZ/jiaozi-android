@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -39,6 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -159,21 +164,48 @@ fun BankDownloadScreen(nav: NavHostController) {
                 style = MaterialTheme.typography.labelSmall,
                 color = AppColors.textSecondary
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // 🔴 2026-09-30 修「零对比度」：原未选中项底色取 `colorScheme.surface`，
+            //    而 Theme 里 `surface`(0xFFF7F7F7) 与 `background` 及页面底 `AppColors.bg` **三者同色**，
+            //    ⇒ 未选中项与页面底对比度 1.00:1，事实上完全不可见（用户反馈「高中初中怪怪的」的真因）。
+            //    现改取 `surfaceContainer`（亮 #FFFFFF / 暗 #1A1A1A，即全站卡片底色）+ `outline` 描边，
+            //    与全站卡面层级一致；未选中也必须具备可感知容器，否则用户既数不出选项个数、也判不准热区。
+            //    同时补齐：圆角 14dp（对齐底部主按钮）/ 触控 ≥48dp / 单选语义（TalkBack 可读）。
+            Row(
+                Modifier.fillMaxWidth().semantics { selectableGroup() },
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 BankStore.STAGE_OPTIONS.forEach { opt ->
                     val sel = stage == opt
+                    val shape = RoundedCornerShape(16.dp)
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(12.dp))
-                            .background(if (sel) AppColors.blue else MaterialTheme.colorScheme.surface)
-                            .then(if (downloading) Modifier else Modifier.clickable { stage = opt })
-                            .padding(vertical = 12.dp),
+                        Modifier.weight(1f).heightIn(min = 48.dp).clip(shape)
+                            .background(
+                                if (sel) AppColors.blue
+                                else MaterialTheme.colorScheme.surfaceContainer
+                            )
+                            .then(
+                                if (sel) Modifier
+                                else Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline,
+                                    shape = shape
+                                )
+                            )
+                            .selectable(
+                                selected = sel,
+                                enabled = !downloading,
+                                role = Role.RadioButton,
+                                onClick = { stage = opt }
+                            )
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             opt,
                             color = if (sel) Color.White else AppColors.textPrimary,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
+                            maxLines = 1
                         )
                     }
                 }
@@ -219,8 +251,9 @@ fun BankDownloadScreen(nav: NavHostController) {
             Button(
                 onClick = { startDownload() },
                 enabled = !downloading && selected.isNotEmpty() && stage.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(14.dp),
+                // 🔴 定高改「最小高」：字号经 App 档位放大后，定高容器会把文字裁掉（2026-09-30 护栏配套）
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue)
             ) {
                 if (downloading) {
@@ -231,12 +264,16 @@ fun BankDownloadScreen(nav: NavHostController) {
                 Spacer(Modifier.width(8.dp))
                 Text(
                     if (downloading) "下载中…" else if (stage.isEmpty()) "请先选择报考学段" else "开始下载所选科目",
-                    fontWeight = FontWeight.SemiBold, fontSize = 16.sp
+                    // 原硬编码 16.sp 不随 App 字号档位走 ⇒ 切档后与周围文字不齐；改用排版 token
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
                 )
             }
             if (!downloading) {
                 Box(
-                    Modifier.fillMaxWidth().clickable { skip() }.padding(vertical = 8.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { skip() }
+                        .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("跳过，先使用空题库", style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary)
@@ -264,8 +301,8 @@ private fun PackRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .border(1.dp, if (selected) AppColors.blue else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .border(1.dp, if (selected) AppColors.blue else MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
             .background(if (selected) AppColors.blueBg else MaterialTheme.colorScheme.surface)
             .clickable { onToggle() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -287,7 +324,7 @@ private fun PackRow(
                         style = MaterialTheme.typography.labelSmall,
                         color = AppColors.blue,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(AppColors.blueBg)
                             .padding(horizontal = 6.dp, vertical = 1.dp)
                     )

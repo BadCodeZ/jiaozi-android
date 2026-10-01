@@ -9,6 +9,8 @@ package com.jiaozi.sz.ui.screens
  */
 
 import com.jiaozi.sz.data.BankStore
+import com.jiaozi.sz.data.model.LessonFields
+import com.jiaozi.sz.ui.PendingWeaknessSeed
 import com.jiaozi.sz.ui.components.GlassBackButton
 import com.jiaozi.sz.ui.components.HeroStatCell
 import com.jiaozi.sz.ui.components.appPainter
@@ -17,6 +19,7 @@ import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.PracticeState
 import kotlin.math.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -187,7 +190,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         val a = if (tot == 0) 0f else rt.toFloat() / tot
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(BankStore.shortName(subj), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(64.dp))
-                            LinearProgressIndicator(progress = { a }, modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)), color = AppColors.blue, trackColor = AppColors.trackGray)
+                            LinearProgressIndicator(progress = { a }, modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(4.dp)), color = AppColors.blue, trackColor = AppColors.trackGray)
                             Text("$rt/$tot · ${(a * 100).toInt()}%", style = MaterialTheme.typography.labelSmall)
                         }
                     }
@@ -212,8 +215,8 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 FlowRow(horizontalGap = 8.dp, verticalGap = 8.dp) {
                     cause.entries.sortedByDescending { it.value }.take(4).forEach { (c, n) ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(c, style = MaterialTheme.typography.bodySmall, color = AppColors.textPrimary, fontSize = 12.sp)
-                            Text("$n 次", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Text(c, style = MaterialTheme.typography.bodySmall, color = AppColors.textPrimary, fontSize = 13.sp)
+                            Text("$n 次", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }
@@ -229,7 +232,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                     "更多",
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.blue,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     modifier = Modifier.clickable {
                         appVm.setPendingProofTab("错题本")
                         nav.navigate("proof")
@@ -264,7 +267,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                             )
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("${BankStore.shortName(q.subject)} · ${q.chapter}", style = MaterialTheme.typography.labelSmall, color = AppColors.blue, fontSize = 12.sp)
+                            Text("${BankStore.shortName(q.subject)} · ${q.chapter}", style = MaterialTheme.typography.labelSmall, color = AppColors.blue, fontSize = 13.sp)
                             Text(q.q, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             if (!q.isSubjective) {
                                 val opts = parseOptions(q.opt)
@@ -287,7 +290,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                             // 错因降级为中性辅助小字（2026-09-24 对齐 E6b：原 danger 红字与解析争夺注意力）
                             // 条件渲染：未标错因时整行不渲染，避免「错因：未标错因」占位噪声（对齐 ProofScreen L539）
                             w.cause.takeIf { it.isNotBlank() }?.let { c ->
-                                Text("错因：$c", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                                Text("错因：$c", style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
                             }
                             if (!w.draft.isNullOrBlank()) {
                                 Text("我的作答：${w.draft}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -300,6 +303,22 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         }
                     }
                 }
+            }
+
+            // 🔴 2026-09-30（薄弱点攻坚独立模块）：错题一键转攻坚笔记
+            //    种子经 AppViewModel.pendingWeaknessSeed 注入 WeaknessScreen 编辑器（与备课分家）。
+            Button(
+                onClick = {
+                    val seed = buildWeaknessSeedFromWrongs(wrongs)
+                    appVm.setPendingWeaknessSeed(seed)
+                    nav.navigate("weakness")
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.danger)
+            ) {
+                Icon(appPainter("target"), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(" 错题生成攻坚笔记", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             }
 
             // AI 讲评入口（对齐网页端 v5.14）
@@ -344,7 +363,7 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
         ) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("AI 讲评", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("覆盖 ${wrongs.size} 道错题", style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                Text("覆盖 ${wrongs.size} 道错题", style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 13.sp)
                 when {
                     aiState.explaining -> Text("生成中…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     aiState.error != null -> Text(aiState.error ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
@@ -374,6 +393,47 @@ internal fun ActionButton(text: String, modifier: Modifier = Modifier, onClick: 
     OutlinedButton(onClick = onClick, modifier = modifier) { Text(text) }
 }
 
+/**
+ * 薄弱点攻坚独立模块：把本次练习错题归集为攻坚笔记种子。
+ * - 标题：错题补强 · {主导科目简称} · {月.日}
+ * - subject/disc：主导科目（科三 取 disc）
+ * - body：按章节归并的错题原文 + 你的选择 / 正确答案 / 我的作答 / 错因 / 解析，供补强复盘直接引用
+ * - fromExamId：标记来源为练习（"practice:N题"），可溯源
+ */
+private fun buildWeaknessSeedFromWrongs(wrongs: List<WrongView>): PendingWeaknessSeed {
+    val dom = wrongs.groupBy { it.q.subject }.maxByOrNull { it.value.size }?.key ?: "科一"
+    val domShort = BankStore.shortName(dom)
+    val disc = wrongs.firstOrNull { it.q.subject == "科三" }?.q?.disc?.takeIf { it.isNotBlank() } ?: ""
+    val cal = java.util.Calendar.getInstance()
+    val title = "错题补强 · $domShort · ${cal.get(java.util.Calendar.MONTH) + 1}.${cal.get(java.util.Calendar.DAY_OF_MONTH)}"
+    val sb = StringBuilder()
+    sb.appendLine("本次练习错题归集（共 ${wrongs.size} 道），据此补强复盘：")
+    wrongs.groupBy { it.q.chapter.ifBlank { domShort } }.toSortedMap().forEach { (ch, ws) ->
+        sb.appendLine("\n【$ch】")
+        ws.forEachIndexed { i, w ->
+            val q = w.q
+            sb.appendLine("${i + 1}. ${q.q}")
+            if (!q.isSubjective) {
+                val opts = parseOptions(q.opt)
+                val mySel = if (w.selected in opts.indices) ('A' + w.selected).toString() else "—"
+                val corr = answerIndex(q.answer)
+                val corrLetter = if (corr in opts.indices) ('A' + corr).toString() else "—"
+                sb.appendLine("   你的选择：$mySel　正确答案：$corrLetter")
+            }
+            if (!w.draft.isNullOrBlank()) sb.appendLine("   我的作答：${w.draft}")
+            if (w.cause.isNotBlank()) sb.appendLine("   错因：${w.cause}")
+            sb.appendLine("   解析：${q.analysis?.takeIf { it.isNotBlank() } ?: "暂无解析"}")
+        }
+    }
+    return PendingWeaknessSeed(
+        title = title,
+        subject = dom,
+        disc = disc,
+        body = sb.toString(),
+        fromExamId = "practice:${wrongs.size}题"
+    )
+}
+
 // 🔴 2026-09-27 死代码清理：原页内私有 `SummaryStatCell(label, value)`（值 17sp / 标签 12sp）已删除，
 //    改调全局原子 `HeroStatCell(value, label, valueFontSize = 17.sp, labelFontSize = 12.sp)`（见上方调用点）。
 //    （14 号 `pending_normalization_rollup` P3「私有统计卡副本」项据此闭环 —— 私有副本全站归零。）
@@ -382,10 +442,16 @@ internal fun ActionButton(text: String, modifier: Modifier = Modifier, onClick: 
 @Composable
 internal fun AnswerCardLegend(color: androidx.compose.ui.graphics.Color, label: String, textColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        // 🔴 2026-09-30 实测修正：图例色块原为**纯色无描边**，而「答对/答错/未答」三色
+        //   都是浅容器色（greenBg / redBg / surfaceVariant），在浅色主题的 sheet 底
+        //   （surfaceContainer #FFFFFF）上几乎与底融合 —— **图例自身不可见**，
+        //   用户拿它当"色卡"去对答题卡，反而对不上。
+        // ⇒ 统一补 1dp outlineVariant 描边，四种样例在任何主题下都有明确边界。
         Box(
             Modifier.size(14.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(color)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(4.dp))
         )
         Text(label, style = MaterialTheme.typography.labelSmall, color = textColor)
     }
@@ -445,7 +511,7 @@ internal fun RadarChart(data: Map<String, Float>) {
         // 轴标签（简单显示在雷达图下方）
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             axes.take(4).forEach { label ->
-                Text(label.take(4), style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 10.sp)
+                Text(label.take(4), style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 11.sp)
             }
         }
     }

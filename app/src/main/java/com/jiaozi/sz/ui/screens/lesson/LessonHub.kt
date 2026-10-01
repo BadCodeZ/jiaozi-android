@@ -152,7 +152,7 @@ internal fun LessonHub(
         var lessonFilter by remember { mutableStateOf("全部") }
         val lessonChips: @Composable RowScope.() -> Unit = {
             listOf("全部", "小学", "语文", "人教版").forEach { s ->
-                FilterChip(selected = s == lessonFilter, onClick = { lessonFilter = s }, label = { Text(s, fontSize = 12.sp) })
+                FilterChip(selected = s == lessonFilter, onClick = { lessonFilter = s }, label = { Text(s, fontSize = 13.sp) })
             }
         }
 
@@ -200,14 +200,14 @@ internal fun LessonHub(
             Card(Modifier.weight(1f).clickable { onTemplates() }, colors = CardDefaults.cardColors(containerColor = AppColors.greenBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(appPainter("bars"), contentDescription = null, tint = AppColors.success, modifier = Modifier.size(24.dp))
-                    Text("模板库", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppColors.success)
+                    Text("模板库", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppColors.success)
                     Text("海量优质模板，快速套用", style = MaterialTheme.typography.bodySmall, color = AppColors.success, fontSize = 11.sp)
                 }
             }
             Card(Modifier.weight(1f).clickable { onNew() }, colors = CardDefaults.cardColors(containerColor = AppColors.purpleBg), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(appPainter("plus"), contentDescription = null, tint = AppColors.purple, modifier = Modifier.size(24.dp))
-                    Text("新建教案", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = AppColors.purple)
+                    Text("新建教案", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = AppColors.purple)
                     Text("从零开始，AI辅助生成", style = MaterialTheme.typography.bodySmall, color = AppColors.purple, fontSize = 11.sp)
                 }
             }
@@ -262,7 +262,7 @@ internal fun LessonHub(
                             }
                             LinearProgressIndicator(
                                 progress = { ring / 12f },
-                                modifier = Modifier.width(96.dp).height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                modifier = Modifier.width(96.dp).height(4.dp).clip(RoundedCornerShape(4.dp)),
                                 color = AppColors.blue,
                                 trackColor = AppColors.trackGray
                             )

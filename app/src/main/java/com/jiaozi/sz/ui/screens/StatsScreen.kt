@@ -218,7 +218,7 @@ fun StatsScreen(nav: NavHostController) {
                 state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 // 2026-09-19：外框已移除横向 padding，此处补回 sp.16 保持内容边距不变。
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 76.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──
@@ -305,7 +305,7 @@ fun StatsScreen(nav: NavHostController) {
                                 "总题量 $rangeTotal 题",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppColors.textSecondary,
-                                fontSize = 12.sp
+                                fontSize = 13.sp
                             )
                         }
                         Spacer(Modifier.height(12.dp))
@@ -366,7 +366,7 @@ fun StatsScreen(nav: NavHostController) {
                                         "${s.trained} 题",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = AppColors.textSecondary,
-                                        fontSize = 12.sp,
+                                        fontSize = 13.sp,
                                         textAlign = TextAlign.End,
                                         modifier = Modifier.width(52.dp)
                                     )
@@ -586,7 +586,7 @@ private fun TrendChart(bars: List<Triple<String, Int, Int>>, highlightLast: Bool
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.End
             ) {
-                yLabels.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = labelColor, fontSize = 10.sp) }
+                yLabels.forEach { Text(it, style = MaterialTheme.typography.labelSmall, color = labelColor, fontSize = 11.sp) }
             }
             Spacer(Modifier.width(8.dp))
             // ── 柱区 ──
@@ -631,7 +631,7 @@ private fun TrendChart(bars: List<Triple<String, Int, Int>>, highlightLast: Bool
                             weekdayLabel(bar.first),
                             style = MaterialTheme.typography.labelSmall,
                             color = labelColor,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             maxLines = 1
                         )
                     }

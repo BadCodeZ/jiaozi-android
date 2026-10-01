@@ -61,20 +61,20 @@ fun DocReader(
             // 关闭阅读器：统一为左上角圆形磨砂返回件（P2）
             GlassBackButton(onClick = onClose)
             Column(Modifier.weight(1f)) {
-                Text("全文阅读", fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 1)
-                Text(title, fontSize = 12.sp, color = AppColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("全文阅读", fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 1)
+                Text(title, fontSize = 13.sp, color = AppColors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Text("${cur + 1}/${pages.size}", fontSize = 13.sp, color = AppColors.textSecondary)
         }
         LinearProgressIndicator(
             progress = { (cur + 1).toFloat() / pages.size.toFloat() },
-            modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+            modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(4.dp)),
             color = AppColors.blue,
             trackColor = AppColors.trackGray
         )
         Text(
             subtitle,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             color = AppColors.textSecondary,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
@@ -88,7 +88,7 @@ fun DocReader(
             Text(
                 pages[cur],
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 lineHeight = 24.sp,
                 color = AppColors.textPrimary
             )

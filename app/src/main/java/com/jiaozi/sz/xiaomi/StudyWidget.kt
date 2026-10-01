@@ -64,7 +64,7 @@ class StudyWidget : AppWidgetProvider() {
             AssetLoader.loadKnowledge(context),
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
             db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(),
-            db.docIndexDao(), db.proofReviewDao(),
+            db.docIndexDao(), db.proofReviewDao(), db.weaknessDao(),
             // 与 App 用同一路径：同步信封基线（仅桌面组件兜底进程才会走到这里）
             com.jiaozi.sz.data.RawEnvStore(java.io.File(context.filesDir, "sync_env_raw.json"))
         )

@@ -70,6 +70,7 @@ import com.jiaozi.sz.ui.components.SectionTitle
 import com.jiaozi.sz.ui.components.StatBand
 import com.jiaozi.sz.ui.components.StatBandItem
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.screens.lesson.SegmentedRow
 import com.jiaozi.sz.util.toIsoDate
 import kotlinx.coroutines.launch
@@ -171,7 +172,7 @@ fun CurricScreen(nav: NavHostController) {
             FilterChip(
                 selected = filter == g,
                 onClick = { filter = g },
-                label = { Text(g, fontSize = 12.sp) }
+                label = { Text(g, fontSize = 13.sp) }
             )
         }
     }
@@ -196,29 +197,19 @@ fun CurricScreen(nav: NavHostController) {
                 //    `high_fidelity.keywords`「右上 **40dp** 漏斗图标键」均不符，且与知识库页 `Box` 写法（40dp）不同构。
                 //    正解＝两层结构：外层 48dp 只承担触控区（满足 01 号 `sz.touch_target_min = 44dp`），
                 //    内层 40dp 承担视觉圆底 ⇒ 视觉尺寸精确回 40dp，触控区不回退。
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clickable {
-                            searchOpen = !searchOpen
-                            if (!searchOpen) query = ""
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.White.copy(alpha = 0.18f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            appPainter(if (searchOpen) "close" else "filter"),
-                            contentDescription = if (searchOpen) "收起搜索" else "搜索课标",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                // 🔴 2026-10-01 九校二迭代：统一为 Liquid Glass 圆钮 44dp。
+                //   旧形态是「外层 48dp 触控区 + 内层 40dp 白 18% 视觉圆」两层结构，
+                //   改玻璃后单层即够（44dp 同时满足视觉统一与触控区 ≥44dp）。
+                //   ⚠️ 图标名随 `searchOpen` 在 close / filter 之间切换，语义不变。
+                GlassIconButton(
+                    onClick = {
+                        searchOpen = !searchOpen
+                        if (!searchOpen) query = ""
+                    },
+                    icon = if (searchOpen) "close" else "filter",
+                    contentDescription = if (searchOpen) "收起搜索" else "搜索课标",
+                    size = 44.dp
+                )
             }
         )
         }
@@ -257,7 +248,7 @@ fun CurricScreen(nav: NavHostController) {
                                     }
                                 }
                             },
-                            shape = RoundedCornerShape(14.dp)
+                            shape = RoundedCornerShape(16.dp)
                         )
                     }
 
@@ -297,7 +288,7 @@ fun CurricScreen(nav: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Box(
-                                Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color.White),
+                                Modifier.size(46.dp).clip(RoundedCornerShape(16.dp)).background(Color.White),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(appPainter("upload"), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(24.dp))
@@ -305,7 +296,7 @@ fun CurricScreen(nav: NavHostController) {
                             Column(Modifier.weight(1f)) {
                                 Text("导入课标", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = AppColors.textPrimary)
                                 Spacer(Modifier.height(3.dp))
-                                Text("支持 PDF、Word、TXT 等格式", fontSize = 12.sp, color = AppColors.textSecondary)
+                                Text("支持 PDF、Word、TXT 等格式", fontSize = 13.sp, color = AppColors.textSecondary)
                             }
                             Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(18.dp))
                         }

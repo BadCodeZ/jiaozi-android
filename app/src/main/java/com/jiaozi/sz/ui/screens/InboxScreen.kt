@@ -1,6 +1,7 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
@@ -167,16 +168,14 @@ fun InboxScreen(nav: NavHostController) {
                 action = {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         // 齿轮：半透明白圆 + 白线条（设置入口）
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .clickable { nav.navigate("settings") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(appPainter("gear"), contentDescription = "设置", tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+                        // 🔴 2026-10-01 九校二迭代：Hero 动作键统一为 Liquid Glass 圆钮 44dp
+                        //   （原 40dp 白 18% 圆 + 白图标；改玻璃后图标同步改主色）。
+                        GlassIconButton(
+                            onClick = { nav.navigate("settings") },
+                            icon = "gear",
+                            contentDescription = "设置",
+                            size = 44.dp
+                        )
                         // 加号：白底 primary 实心圆（录入开关）
                         Box(
                             modifier = Modifier
@@ -251,7 +250,7 @@ fun InboxScreen(nav: NavHostController) {
                             .clickable { if (showForm) reset() else { reset(); showForm = true } },
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
                         Row(
@@ -260,7 +259,7 @@ fun InboxScreen(nav: NavHostController) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Box(
-                                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(AppColors.blue),
+                                Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(AppColors.blue),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(appPainter("upload"), contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
@@ -358,7 +357,7 @@ fun InboxScreen(nav: NavHostController) {
                     ) {
                         // 前导图标：36dp 浅语义底圆角方块 + 语义主色图标
                         Box(
-                            Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(accentBg),
+                            Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(accentBg),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(appPainter(rowIcon), contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
@@ -378,7 +377,7 @@ fun InboxScreen(nav: NavHostController) {
                                     if (e.note.isNotBlank()) append(" · ").append(e.note)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 color = AppColors.textSecondary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis

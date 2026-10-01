@@ -38,6 +38,7 @@ fun LessonScreen(nav: NavHostController) {
             appVm = LocalAppVm.current,
             target = editTarget,
             seed = tplSeed,
+            initialTitle = "",
             onBack = { view = "hub"; editTarget = null; tplSeed = null },
             onSaved = { view = "hub"; editTarget = null; tplSeed = null }
         )

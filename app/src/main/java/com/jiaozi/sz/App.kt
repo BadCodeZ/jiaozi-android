@@ -61,7 +61,7 @@ class App : Application() {
             bank, syllabus, autoSyll, knowledge,
             db.progressDao(), db.dailyStatDao(), db.metaDao(), db.userQuestionDao(),
             db.lessonDao(), db.inboxDao(), db.aiChatDao(), db.curricDao(), db.bookDao(), db.docIndexDao(),
-            db.proofReviewDao(),
+            db.proofReviewDao(), db.weaknessDao(),
             // 同步信封基线改为落盘（原为 meta 单行，超 CursorWindow 上限后会导致导出/同步全废）
             com.jiaozi.sz.data.RawEnvStore(java.io.File(filesDir, "sync_env_raw.json"))
         )

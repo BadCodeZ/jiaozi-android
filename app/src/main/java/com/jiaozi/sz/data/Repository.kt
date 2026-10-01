@@ -20,6 +20,8 @@ import com.jiaozi.sz.data.local.DocIndexDao
 import com.jiaozi.sz.data.local.DocHit
 import com.jiaozi.sz.data.local.ProofReviewDao
 import com.jiaozi.sz.data.local.ProofReviewEntity
+import com.jiaozi.sz.data.local.WeaknessDao
+import com.jiaozi.sz.data.local.WeaknessEntity
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.jiaozi.sz.data.local.InboxDao
 import com.jiaozi.sz.data.local.InboxEntity
@@ -130,6 +132,7 @@ class AppRepository(
     internal val bookDao: BookDao,
     internal val docIndexDao: DocIndexDao,
     internal val proofReviewDao: ProofReviewDao,
+    internal val weaknessDao: WeaknessDao,
     /** 同步信封基线的落盘存储（替代 meta 大行；见 [RawEnvStore] 注释） */
     private val rawStore: RawEnvStore
 ) {
@@ -280,6 +283,12 @@ class AppRepository(
         lessonDao.delete(id)
         unsyncDoc("lesson", id)
     }
+
+    // —— 薄弱点攻坚（weakness，独立模块，与备课分家）——
+    // 仅本地存储，不参与信封跨端同步（与进度数据同口径）。
+    fun allWeaknessFlow(): Flow<List<WeaknessEntity>> = weaknessDao.all()
+    suspend fun upsertWeakness(e: WeaknessEntity) = weaknessDao.upsert(e)
+    suspend fun deleteWeakness(id: String) = weaknessDao.delete(id)
 
     // —— 备课结构化（十二要素）序列化 ——
     /** 把本地 LessonEntity 还原为信封用的完整 lesson 对象（含顶层列 + data 内结构化字段） */

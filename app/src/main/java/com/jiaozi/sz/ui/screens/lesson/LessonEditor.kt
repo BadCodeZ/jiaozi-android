@@ -71,7 +71,7 @@ internal fun LessonEditor(
     val existing = remember(target) {
         target?.let { appVm.repo.parseLessonData(it.data) } ?: (LessonFields() to JsonObject(emptyMap()))
     }
-    var title by remember { mutableStateOf(target?.title ?: initialTitle.ifBlank { seed?.let { "新教案" } ?: "" }) }
+    var title by remember { mutableStateOf(target?.title ?: initialTitle.ifBlank { "新教案" }) }
     var f by remember {
         mutableStateOf(
             seed ?: run {
@@ -166,7 +166,7 @@ internal fun LessonEditor(
                     Text("结构化完成度", style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary)
                     LinearProgressIndicator(
                         progress = { ring / 12f },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
                         color = AppColors.blue,
                         trackColor = AppColors.trackGray
                     )
@@ -264,7 +264,7 @@ internal fun LessonEditor(
                         modifier = Modifier.fillMaxWidth()
                     )
                     if (tplError != null) {
-                        Text(tplError!!, color = AppColors.danger, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+                        Text(tplError!!, color = AppColors.danger, fontSize = 13.sp, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
                     }
                 }
             },

@@ -9,6 +9,7 @@ package com.jiaozi.sz.ui.screens
  */
 
 import com.jiaozi.sz.ui.components.CardTokens
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.PracticeState
@@ -134,20 +135,31 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
         }
     }
     if (showExitConfirm) {
+        // 🔴 2026-09-30 实测修正（P1）：旧实现两处硬伤 ——
+        //   ① **文案自相矛盾**：「退出不自动保存，已答进度计入错题本」前句说不存、后句说存。
+        //      查证实现：`submit()` 提交时**即时落盘**（`repo.upsertProgress` + `updateDaily`），
+        //      故「已提交的题」**确已保存**；真正丢的只有「选中但未点提交」的本题。
+        //      ⇒ 改为准确表述：已作答已保存，未提交的本题不记录。
+        //   ② **按钮同权**：「继续练习」与「退出」同为默认主色文字按钮，且破坏性的「退出」
+        //      还占据右侧 confirm 主位 ⇒ 手滑即中断。
+        //      ⇒ 安全项「继续练习」移到 confirm 主位；「退出」降到 dismiss 位并着 error 色警示。
         AlertDialog(
             onDismissRequest = { showExitConfirm = false },
             title = { Text(if (isMock) "离开模考？" else "退出练习？") },
             text = {
                 Text(
-                    if (isMock) "离场将按当前进度交卷结束。"
-                    else "退出不自动保存，已答进度计入错题本。"
+                    if (isMock) "离场将按当前已提交的作答交卷结束，未作答的题计为未答。"
+                    else "已提交作答的题已保存（含错题本）。若本题尚未点「提交」，这次选择不会被记录。"
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showExitConfirm = false; vm.exitSession() }) { Text(if (isMock) "交卷离开" else "退出") }
+                TextButton(onClick = { showExitConfirm = false }) { Text(if (isMock) "继续答题" else "继续练习") }
             },
             dismissButton = {
-                TextButton(onClick = { showExitConfirm = false }) { Text(if (isMock) "继续答题" else "继续练习") }
+                TextButton(
+                    onClick = { showExitConfirm = false; vm.exitSession() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text(if (isMock) "交卷离开" else "退出") }
             }
         )
     }
@@ -195,9 +207,18 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
         //      左端由「图标+双行文案」收成「图标+短数字」，顶栏视觉重量大幅下降，视线直达题目。
         Row(Modifier.fillMaxWidth().height(44.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { showExitConfirm = true }, modifier = Modifier.size(40.dp)) {
-                    Icon(appPainter("close"), contentDescription = "退出练习", modifier = Modifier.size(20.dp))
-                }
+                // 🔴 2026-10-01 九校：退出键统一为 Liquid Glass 玻璃钮（与底部导航/返回键同一套材质、
+                //   交互反馈与按压果冻）。尺寸沿用原 40dp（顶栏高锁定 44dp，原 IconButton 是 40dp），
+                //   图标 = size/2 = 20dp，与原 20dp 一致 ⇒ 顶栏几何零回归。
+                //   ⚠️ 不传 backdrop：本页在 NavHost 内部（属 layerBackdrop 录制范围），传共享实例会自采样。
+                GlassIconButton(
+                    onClick = { showExitConfirm = true },
+                    icon = "close",
+                    contentDescription = "退出练习",
+                    // 🔴 2026-10-01 九校二迭代：统一为**二级界面左上角返回键的尺寸（44dp）** ——
+                    //   全站玻璃圆钮只此一档尺寸，任何页面都不再出现 36/40/46/48 的散落值。
+                    size = 44.dp
+                )
                 Text("${st.index + 1}/${st.total}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.outline, maxLines = 1)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -254,7 +275,7 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(AppColors.blueBg).padding(horizontal = 8.dp, vertical = 3.dp)) {
+                            Box(modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(AppColors.blueBg).padding(horizontal = 8.dp, vertical = 3.dp)) {
                                 Text(if (qq.isSubjective) "主观题" else "单选题", style = MaterialTheme.typography.labelSmall, color = AppColors.blue, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                             }
                         }
@@ -503,7 +524,7 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue),
                 enabled = !st.answered && canSubmit
-            ) { Text(if (st.answered) "已提交" else "提交", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, softWrap = false) }
+            ) { Text(if (st.answered) "已提交" else "提交", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1, softWrap = false) }
             // 下一题
             // 🔴 2026-09-24：错因改为「可选」⇒ 解除原「答错必须选 ≥1 项错因才能下一题」的硬门禁。
             //    答对、或已作答（无论是否标错因）均可继续；错因标记改由反馈卡内折叠入口自由补标。
@@ -536,32 +557,42 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                         val itemQ = st.questions[i]
                         val r = st.results[itemQ.id]
                         val isCurrent = i == st.index
+                        // 🔴 2026-09-30 实测修正（P1）：旧三态在暗色下几乎不可辨 ——
+                        //   ①「答对」用 **primaryContainer 主色蓝**承载，与「答错」的红不构成正误语义对
+                        //      （蓝在本 App 是品牌主色，不是成功色），用户要对照图例才敢确认；
+                        //   ②状态边框 **alpha 0.5** 在暗色下近乎消失；
+                        //   ③「当前题」底色与「未答」同为 surfaceVariant，只靠边框粗细 + 10sp「当前」二字区分
+                        //      ⇒ 实测根本看不出自己站在哪一题。
+                        // ✅ 四态强区分：**当前=主色实底**（一眼定位）、答对=绿、答错=红、未答=灰；
+                        //   状态边框改 1.5dp **实色**（不再半透明）；当前题若已答则保留状态底色 + 蓝色粗边。
+                        val answeredCorrect = r?.correct == true
+                        val answeredWrong = r != null && r.correct != true
                         val (bg, fg) = when {
-                            r?.correct == true -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-                            r != null -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-                            else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurface
-                        }
-                        val statusColor = when {
-                            r?.correct == true -> MaterialTheme.colorScheme.primary
-                            r != null -> MaterialTheme.colorScheme.error
-                            else -> null
+                            answeredCorrect -> AppColors.greenBg to AppColors.success
+                            answeredWrong -> AppColors.redBg to AppColors.danger
+                            isCurrent -> MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
                         }
                         val border = when {
+                            // 当前题：蓝色粗边压过一切（位置信息优先级最高）
                             isCurrent -> BorderStroke(2.5.dp, MaterialTheme.colorScheme.primary)
-                            statusColor != null -> BorderStroke(1.dp, statusColor.copy(alpha = 0.5f))
+                            answeredCorrect -> BorderStroke(1.5.dp, AppColors.success)
+                            answeredWrong -> BorderStroke(1.5.dp, AppColors.danger)
                             else -> null
                         }
                         Card(
                             Modifier.fillMaxWidth().aspectRatio(1f)
                                 .clickable { vm.goto(i); showCard = false },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = bg),
                             border = border
                         ) {
                             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                     Text("${i + 1}", style = MaterialTheme.typography.labelLarge, color = fg)
-                                    if (isCurrent) Text("当前", style = MaterialTheme.typography.labelSmall, color = AppColors.blue, fontSize = 10.sp)
+                                    // 🔴 「当前」字样原先固定 `AppColors.blue`：当前题改为**主色实底**后，
+                                    //    蓝字压蓝底等于隐形 ⇒ 跟随该格前景色 fg（实底上为 onPrimary 白）。
+                                    if (isCurrent) Text("当前", style = MaterialTheme.typography.labelSmall, color = fg, fontSize = 11.sp)
                                 }
                             }
                         }
@@ -569,8 +600,9 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 }
                 // 图例
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    AnswerCardLegend(MaterialTheme.colorScheme.primaryContainer, "答对")
-                    AnswerCardLegend(MaterialTheme.colorScheme.errorContainer, "答错")
+                    AnswerCardLegend(MaterialTheme.colorScheme.primary, "当前")
+                    AnswerCardLegend(AppColors.greenBg, "答对")
+                    AnswerCardLegend(AppColors.redBg, "答错")
                     AnswerCardLegend(MaterialTheme.colorScheme.surfaceVariant, "未答")
                 }
                 // 🔴 2026-09-24：原底部工具条低频动作「存到收集箱」下沉至此（答题卡面板）。
@@ -578,7 +610,7 @@ internal fun SessionView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 OutlinedButton(
                     onClick = { vm.saveToInbox(q, st.draft); showCard = false },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Icon(appPainter("note"), contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
@@ -599,22 +631,25 @@ internal fun OptionRow(
     wrongSelected: Boolean,
     onClick: () -> Unit
 ) {
-    // 选项字母配色：四色收敛为语义色（蓝/绿/红/灰），随明暗主题自动切换；
-    // 原先用 Tailwind 原色（#3B82F6/#10B981/#EF4444/#6B7280）+ 固定浅底，在暗色主题下会留下死白底
-    val letterPairs = mapOf(
-        "A" to (AppColors.blue to AppColors.blueLight),
-        "B" to (AppColors.success to AppColors.greenBg),
-        "C" to (AppColors.danger to AppColors.redBg),
-        "D" to (AppColors.textSecondary to AppColors.trackGray)
-    )
-    val (letterColor, letterBg) = letterPairs[letter] ?: (AppColors.blue to AppColors.blueLight)
+    // 🔴 2026-09-30 实测修正（P0）：选项字母是**序号（A/B/C/D）而非语义**，
+    //   旧实现按序号硬编码「A 蓝 / B 绿 / C 红 / D 灰」，把中性序号染上了正误语义
+    //   ⇒ 用户会把「绿色 B」读成答案提示、把「红色 C」读成错误项。
+    //   真机实测首题正确答案恰为 B（绿），直接强化该误解；若正确答案换成 C 则红底更荒谬。
+    // ✅ 新规则：**未作答时一律中性**（surfaceVariant 底 + onSurfaceVariant 字），
+    //   选中态用主色蓝（表达"我选了哪个"），**只有作答后的判定**（✓ 正确 / ✗ 选错）才启用绿/红状态色。
+    //   状态色由此唯一绑定到「正确与否」，不再与序号混淆。
+    val neutralFg = MaterialTheme.colorScheme.onSurfaceVariant
+    val neutralBg = MaterialTheme.colorScheme.surfaceVariant
+    val chosen = selected && !answered   // 已作答后 selected 不再表达"我选的"，判定色优先
+    val letterColor = if (chosen) AppColors.blue else neutralFg
+    val letterBg = if (chosen) AppColors.blueLight else neutralBg
     val correctContainer = AppColors.greenBg
     val correctOn = AppColors.success
     val correctBorder = AppColors.success
     val bg = when {
         answered && correct -> correctContainer
         answered && wrongSelected -> MaterialTheme.colorScheme.errorContainer
-        selected -> letterBg
+        chosen -> AppColors.blueLight
         else -> MaterialTheme.colorScheme.surface
     }
     val fg = when {
@@ -625,7 +660,7 @@ internal fun OptionRow(
     val borderColor = when {
         answered && correct -> correctBorder
         answered && wrongSelected -> MaterialTheme.colorScheme.error
-        selected -> letterColor
+        chosen -> AppColors.blue
         else -> MaterialTheme.colorScheme.outlineVariant
     }
     val mark = when {
@@ -634,8 +669,8 @@ internal fun OptionRow(
         else -> null
     }
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(14.dp))
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .background(bg)
             .clickable(enabled = !answered) { onClick() }
             .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -654,7 +689,7 @@ internal fun OptionRow(
             }
         }
         Spacer(Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodyMedium, color = fg, modifier = Modifier.weight(1f), fontSize = 15.sp)
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = fg, modifier = Modifier.weight(1f), fontSize = 16.sp)
     }
 }
 

@@ -2,6 +2,7 @@ package com.jiaozi.sz.ui.screens
 
 import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.GroupTitle
@@ -76,6 +77,7 @@ import com.jiaozi.sz.ui.Screen
 import com.jiaozi.sz.ui.reduceMotionNow
 import com.jiaozi.sz.util.startOfDayMillis
 import com.jiaozi.sz.util.toIsoDate
+import com.jiaozi.sz.util.todayIso
 import com.jiaozi.sz.util.todayStartMillis
 
 /**
@@ -123,6 +125,17 @@ fun TodayScreen(nav: NavHostController) {
 
     val now = System.currentTimeMillis()
     val due = remember(progress) { progress.values.count { it.due > 0 && it.due <= now } }
+    // 🔴 2026-09-30 实测修正（P0）：原 `practicedCount` 统计的是**累计**已练题数
+    //   （`right+wrong>0` 的题量），却被当成「今日目标 50」的分子 ⇒ 真机出现 **470/50**、进度条恒满；
+    //   而练习页同指标走 `daily_stat` **当日**口径显示 0/50 ⇒ 两页当面矛盾。
+    // ✅ 拆成两个口径、各自配自己的文案：
+    //   - `todayDone`  = 今日实际完成题数（daily_stat 当日行）→ 配 TODAY_GOAL 分母，与练习页同源同值；
+    //   - `practicedCount` = 累计已练题数 → 只用于「备考进度」总览，**不再带 /50 分母**。
+    val daily by repo.recentDailyStat(7).collectAsStateWithLifecycle(initialValue = emptyList())
+    val todayKey = remember { todayIso() }
+    val todayDone = remember(daily, todayKey) {
+        daily.firstOrNull { it.date == todayKey }?.let { it.right + it.wrong } ?: 0
+    }
     val practicedCount = remember(progress) { progress.values.count { it.right + it.wrong > 0 } }
     val daysLeft = remember(targetDay) {
         if (targetDay.isBlank()) null else runCatching {
@@ -175,7 +188,8 @@ fun TodayScreen(nav: NavHostController) {
         daysLeft == null -> "点此选择目标日，开启备考倒计时"
         // 已过期：给出原目标日 + 出口（hero 此时恢复可点，见下方 modifier）
         daysLeft < 0 -> "目标日 $targetDay · 点此更新下一个考期"
-        practicedCount > 0 -> "你的备考进度 · 已完成 $practicedCount/$TODAY_GOAL"
+        // 累计量不再配「今日目标」分母（否则 470/50 恒满）；今日进度另给，两口径并列不混淆
+        practicedCount > 0 -> "累计已练 $practicedCount 题 · 今日 $todayDone/$TODAY_GOAL"
         else -> "今天开始第一组练习吧"
     }
     // 未设置目标日、或目标日已过期 ⇒ hero 可点，点开日期选择器（过期时是唯一「更新考期」入口）
@@ -209,16 +223,23 @@ fun TodayScreen(nav: NavHostController) {
                             Modifier
                         },
                         action = {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.18f))
-                                    .clickable { nav.navigate("settings") },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(appPainter("gear"), contentDescription = "设置", tint = Color.White, modifier = Modifier.size(20.dp))
-                            }
+                            // 🔴 2026-10-01 九校二迭代：一级页 Hero 上的动作键统一为 **Liquid Glass 圆钮 44dp**。
+                            //   杰哥：「一级界面的设置按钮和二级界面左上方的返回按钮都要改为统一的液化玻璃材质，
+                            //   统一大小为二级界面左上角返回键的大小」。
+                            //   旧形态 = 40dp 白 18% 圆 + 20dp 白图标（Hero 渐变上若隐若现）；
+                            //   新形态走 [GlassIconButton]：与底部导航同一套 `drawBackdrop` 玻璃、
+                            //   同一套按压果冻放大/回弹动画，尺寸/材质/反馈全站只此一档。
+                            //   ⚠️ 图标色：十五校起由 `primary` 改为 [GlassIconButton] 的默认
+                            //     `onSurface` —— 与底部导航未选中图标同 token（详见该组件 KDoc）。
+                            //     九校曾注「玻璃底已是浅色，白图标会看不见」，该理由只在浅色侧成立，
+                            //     而浅色侧的正解本就是 onSurface（近黑），深色侧玻璃底是暗的、
+                            //     亮图标反而最清晰 ⇒ 两侧同一个 token 全对。
+                            GlassIconButton(
+                                onClick = { nav.navigate("settings") },
+                                icon = "gear",
+                                contentDescription = "设置",
+                                size = 44.dp
+                            )
                         }
                     )
 
@@ -231,7 +252,7 @@ fun TodayScreen(nav: NavHostController) {
                     state = listState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     // 2026-09-19：外框已移除横向 padding，此处补回 sp.16 保持内容边距不变。
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 76.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = com.jiaozi.sz.ui.components.NavTokens.ContentBottomPad),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // ── 固定带下沉（2026-09-21）：Hero 之外的信息带随列表滚动 ──
@@ -244,7 +265,9 @@ fun TodayScreen(nav: NavHostController) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 StatCard(
                                     icon = "target",
-                                    value = "$practicedCount",
+                                    // 🔴 口径修正：分子改 `todayDone`（今日实际完成，与练习页同源），
+                                    //    旧分子 `practicedCount` 是累计量 ⇒ 470/50 进度条恒满。
+                                    value = "$todayDone",
                                     unit = "/$TODAY_GOAL 题",
                                     label = "今日目标",
                                     modifier = Modifier.weight(1f),
@@ -255,7 +278,7 @@ fun TodayScreen(nav: NavHostController) {
                                     iconSize = 32.dp,
                                     labelInline = true,
                                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                    progress = practicedCount / TODAY_GOAL.toFloat(),
+                                    progress = (todayDone / TODAY_GOAL.toFloat()).coerceIn(0f, 1f),
                                     progressColor = AppColors.blue,
                                     progressHeight = 4.dp
                                 )
@@ -296,6 +319,8 @@ fun TodayScreen(nav: NavHostController) {
                                 subtitle = t.subtitle,
                                 iconTint = t.fg,
                                 iconBg = t.bg,
+                                // 章节名是完整信息，允许 2 行（实测单行可用宽 ~148dp 放不下 14 字章节名）
+                                titleMaxLines = 2,
                                 badge = { MiniBadge(t.badge, t.fg, t.bg) },
                                 onClick = {
                                     appVm.checkIn()
@@ -455,7 +480,7 @@ private fun TodayEmptyHint(practiced: Boolean, onGo: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(AppColors.blueBg),
                 contentAlignment = Alignment.Center
             ) {
@@ -505,7 +530,11 @@ private fun TaskSeed.toTask(badge: String, icon: String, fg: Color, bg: Color, q
     TodayTask(
         icon = icon,
         badge = badge,
-        title = "$badge · $chapter",
+        // 🔴 2026-09-30 实测修正（P1）：旧标题 `"$badge · $chapter"` 把已由右侧角标承载的
+        //   badge 又写进标题 ⇒ ①信息重复 ②挤占标题行 ⇒ 章节名被切成「优先练习 · 一、…」，
+        //   **用户点进去前根本不知道要练哪一章**。
+        // ✅ 标题只放章节名（用户真正关心的"练什么"），badge 交给右侧 MiniBadge，各司其职。
+        title = chapter,
         subtitle = "$questions 题 · 错题 $wrong",
         fg = fg,
         bg = bg,

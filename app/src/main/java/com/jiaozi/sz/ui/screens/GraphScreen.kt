@@ -1,6 +1,7 @@
 package com.jiaozi.sz.ui.screens
 import com.jiaozi.sz.data.BankStore
 import com.jiaozi.sz.ui.components.CardTokens
+import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
 import com.jiaozi.sz.ui.components.HeroHeader
@@ -159,7 +160,7 @@ fun GraphScreen(nav: NavHostController) {
     // 🔴 2026-09-28：展示名一律用《考试大纲》官方名（窄 chip 用官方简写，见 BankStore.shortName）
     val subjectChips: @Composable RowScope.() -> Unit = {
         subjects.forEach { s ->
-            FilterChip(selected = subj == s, onClick = { subj = s }, label = { Text(BankStore.shortName(s), fontSize = 12.sp) })
+            FilterChip(selected = subj == s, onClick = { subj = s }, label = { Text(BankStore.shortName(s), fontSize = 13.sp) })
         }
     }
 
@@ -221,7 +222,7 @@ fun GraphScreen(nav: NavHostController) {
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Text("列表", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                            Text("列表", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -368,20 +369,20 @@ fun GraphScreen(nav: NavHostController) {
                     strokeWidth = 0f
                     style = android.graphics.Paint.Style.FILL
                 })
-                paint.color = onBg; paint.textSize = if (nd.kind == "chapter") 13.sp.value else 11.sp.value
+                paint.color = onBg; paint.textSize = if (nd.kind == "chapter") 13.sp.toPx() else 11.sp.toPx()
                 // 真实标签：章节显示名称（不截断）；知识卡显示分类名
                 val label = nd.label
-                drawContext.canvas.nativeCanvas.drawText(label, px, py - r - 4f, paint)
+                drawContext.canvas.nativeCanvas.drawText(label, px, py - r - 4.dp.toPx(), paint)
                 if (nd.kind == "chapter" && nd.payload.isNotBlank()) {
-                    paint.color = onBg; paint.textSize = 11.sp.value
-                    drawContext.canvas.nativeCanvas.drawText(nd.payload, px, py + r + 12f, paint)
+                    paint.color = onBg; paint.textSize = 11.sp.toPx()
+                    drawContext.canvas.nativeCanvas.drawText(nd.payload, px, py + r + 12.dp.toPx(), paint)
                 }
             }
             // 中心 hub
             drawContext.canvas.nativeCanvas.drawCircle(cx, cy, hubR, paint.apply { color = primary; alpha = 255; strokeWidth = 0f })
-            paint.color = surface; paint.textSize = 12.sp.value
+            paint.color = surface; paint.textSize = 12.sp.toPx()
             val hubLabel = BankStore.shortName(subj)
-            drawContext.canvas.nativeCanvas.drawText(hubLabel, cx, cy + 4f, paint)
+            drawContext.canvas.nativeCanvas.drawText(hubLabel, cx, cy + 4.dp.toPx(), paint)
 
             drawContext.canvas.nativeCanvas.restore()
         }
@@ -407,9 +408,17 @@ fun GraphScreen(nav: NavHostController) {
                                 maxLines = 2, overflow = TextOverflow.Ellipsis
                             )
                         }
-                        IconButton(onClick = { selectedNode = null }) {
-                            Icon(appPainter("close"), contentDescription = "关闭", Modifier.size(18.dp))
-                        }
+                        // 🔴 2026-10-01 九校：节点详情卡的关闭键统一为 Liquid Glass 玻璃钮
+                        //   （同一套材质/交互反馈/按压果冻）。取 40dp：原 IconButton 默认 48dp，
+                        //   在 16dp 内距的卡片里偏挤；图标 = size/2 = 20dp（原 18dp，略大更清晰）。
+                        //   ⚠️ 不传 backdrop：本页在 NavHost 内部，属 layerBackdrop 录制范围。
+                        GlassIconButton(
+                            onClick = { selectedNode = null },
+                            icon = "close",
+                            contentDescription = "关闭",
+                            // 统一 44dp（全站玻璃圆钮唯档尺寸，对齐二级界面左上角返回键）
+                            size = 44.dp
+                        )
                     }
                 }
             }

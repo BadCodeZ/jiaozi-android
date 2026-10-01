@@ -181,7 +181,7 @@ fun AiChatScreen(nav: NavHostController) {
                         Text(
                             "基于『${contextQ.take(24)}${if (contextQ.length > 24) "…" else ""}』的题目上下文",
                             style = MaterialTheme.typography.bodySmall,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         // close 用 Box + clickable（32dp，与全局 FilterChip 高度同档）而非 IconButton——
@@ -265,7 +265,7 @@ fun AiChatScreen(nav: NavHostController) {
                                         .clickable { vm.send(q) }
                                         .padding(horizontal = 12.dp, vertical = 7.dp)
                                 ) {
-                                    Text(q, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Text(q, style = MaterialTheme.typography.bodySmall, fontSize = 13.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                 }
                             }
                         }
@@ -349,7 +349,7 @@ private fun ChatBubble(m: AiChatEntity) {
         verticalAlignment = Alignment.Top
     ) {
         if (!isUser) {
-            IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(10.dp))
+            IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(12.dp))
             Spacer(Modifier.width(8.dp))
         }
         Card(
@@ -370,7 +370,7 @@ private fun ChatBubble(m: AiChatEntity) {
 /** 空态问候用的 assistant 头像（与 [ChatBubble] 同形，抽出来给空态复用）。 */
 @Composable
 private fun AssistantAvatar() {
-    IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(10.dp))
+    IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(12.dp))
 }
 
 /** 流式打字光标：首 token 到达前、以及生成中的微动效，消除「发问后空等」焦虑（P2） */

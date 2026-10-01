@@ -169,7 +169,7 @@ fun ChaptersScreen(nav: NavHostController) {
             Card(
                 Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = AppColors.warningBg),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)
             ) {
                 Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -266,7 +266,7 @@ fun ChaptersScreen(nav: NavHostController) {
                                     when {
                                         weightNow <= 0f -> StatusChip("已停用", AppColors.warningBg, AppColors.warning)
                                         chNoAnalysis > 0 -> StatusChip("缺解析 $chNoAnalysis", AppColors.redBg, AppColors.danger)
-                                        else -> Text(status, style = MaterialTheme.typography.labelMedium, color = col, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                        else -> Text(status, style = MaterialTheme.typography.labelMedium, color = col, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                     }
                                     Icon(appPainter("chevron"), contentDescription = null, Modifier.size(18.dp), tint = AppColors.textSecondary.copy(alpha = 0.4f))
                                 }
@@ -280,7 +280,7 @@ fun ChaptersScreen(nav: NavHostController) {
                             if (h.acc >= 0f) {
                                 LinearProgressIndicator(
                                     progress = { h.acc.coerceIn(0f, 1f) },
-                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
                                     color = col,
                                     trackColor = AppColors.trackGray
                                 )
@@ -297,7 +297,7 @@ fun ChaptersScreen(nav: NavHostController) {
                             }
                             LinearProgressIndicator(
                                 progress = { (weightNow / 2f).coerceIn(0f, 1f) },
-                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
+                                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(4.dp)),
                                 color = if (weightNow <= 0f) AppColors.danger else MaterialTheme.colorScheme.primary,
                                 trackColor = AppColors.trackGray
                             )

@@ -163,7 +163,7 @@ fun SearchScreen(nav: NavHostController, initial: String = "") {
                 item { Spacer(Modifier.height(4.dp)) }
                 // 🔴 2026-09-21 按 13 号稿：『热门搜索』＝**次级灰小字**（稿内轻于引导文案，
                 //    与真机原先的『黑色粗体 titleSmall』层级相反）；此处从稿。
-                item { Text("热门搜索", style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary, fontSize = 12.sp) }
+                item { Text("热门搜索", style = MaterialTheme.typography.bodyMedium, color = AppColors.textSecondary, fontSize = 13.sp) }
                 item { Spacer(Modifier.height(4.dp)) }
                 item {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -176,7 +176,7 @@ fun SearchScreen(nav: NavHostController, initial: String = "") {
                                     .clickable { raw = TextFieldValue(kw); query = kw }
                                     .padding(horizontal = 10.dp, vertical = 8.dp)
                             ) {
-                                Text(kw, fontSize = 12.sp, lineHeight = 14.sp, color = AppColors.textSecondary)
+                                Text(kw, fontSize = 13.sp, lineHeight = 14.sp, color = AppColors.textSecondary)
                             }
                         }
                     }
@@ -270,11 +270,11 @@ private fun GroupCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                IconBadge(icon, iconBg, size = 30.dp, shape = RoundedCornerShape(10.dp))
+                IconBadge(icon, iconBg, size = 30.dp, shape = RoundedCornerShape(12.dp))
                 Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(14.dp))
                 Spacer(Modifier.weight(1f))
-                Text("共 $count", style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 12.sp)
+                Text("共 $count", style = MaterialTheme.typography.labelSmall, color = AppColors.textSecondary, fontSize = 13.sp)
                 Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -327,7 +327,7 @@ private fun SearchEmptyRow(icon: String, text: String) {
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Icon(appPainter(icon), contentDescription = null, modifier = Modifier.size(18.dp), tint = AppColors.textSecondary)
-        Text(text, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp)
+        Text(text, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp)
     }
 }
 
