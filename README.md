@@ -48,7 +48,7 @@
 | 运行环境 | Android 8.0 (API 26) 及以上 |
 | 网络依赖 | 核心功能全部离线可用，仅 AI 讲评和同步需联网 |
 | 源码 | 完整 Kotlin 源码，全部开源 |
-| 构建工具 | Gradle 8.9 + AGP 8.4.2 + Kotlin 1.9.24 |
+| 构建工具 | Gradle 8.9 + AGP 8.7.0 + Kotlin 2.1.20 |
 | 作者 | BadCodeZ |
 
 ### 相关项目
@@ -65,8 +65,8 @@
 | 项目 | 正式版 V1 | 正式版 V1.1 | 当前版本 |
 |------|-----------|-------------|----------|
 | 内部版本 | V2.35.5 | V2.75 | **V2.8.0** |
-| 安装包 | `JiaoziAPP v2.35.5.apk`（17.7 MB） | `JiaoziAPP v2.75.apk`（18.3 MB） | **`JiaoziAPP.apk`（18.3 MB，不含题库）** |
-| 源码 | 未提供 | 完整 Kotlin 源码（61 个文件） | **完整 Kotlin 源码（190 个源文件）** |
+| 安装包 | `JiaoziAPP v2.35.5.apk`（17.7 MB） | `JiaoziAPP v2.75.apk`（18.3 MB） | **`JiaoziAPP.apk`（20.34 MB，不含题库）** |
+| 源码 | 未提供 | 完整 Kotlin 源码（61 个文件） | **完整 Kotlin 源码（115 个源文件）** |
 | 发布时间 | 2026-08-16 | 2026-08-23 | **2026-09-27** |
 
 本版本相对 V2.77 为一次大规模更新，包含全应用界面重写、题库彻底外置与按报考学段真拆包。
@@ -217,10 +217,10 @@
 | 工具 | 版本 |
 |------|------|
 | JDK | 17 |
-| Android SDK | API 34 |
+| Android SDK | API 35 |
 | Gradle | 8.9 |
-| AGP | 8.4.2 |
-| Kotlin | 1.9.24 |
+| AGP | 8.7.0 |
+| Kotlin | 2.1.20 |
 
 #### 构建步骤
 
@@ -288,7 +288,7 @@ cd jiaozi-android
 
 | 类别 | 技术选型 |
 |------|----------|
-| 语言 | Kotlin 1.9.24 |
+| 语言 | Kotlin 2.1.20 |
 | UI 框架 | Jetpack Compose + Material 3 |
 | 架构 | MVVM + Repository Pattern |
 | 数据持久化 | Room（SQLite） |
@@ -297,7 +297,7 @@ cd jiaozi-android
 | 导航 | Compose Navigation |
 | 网络 | OkHttp / Retrofit |
 | 序列化 | Kotlin Serialization |
-| 构建工具 | Gradle 8.9 + AGP 8.4.2 |
+| 构建工具 | Gradle 8.9 + AGP 8.7.0 |
 | 最低 SDK | 26（Android 8.0） |
 | 目标 SDK | 34（Android 14） |
 
@@ -308,13 +308,13 @@ cd jiaozi-android
 | 项目 | 值 |
 |------|------|
 | 安装包 | `JiaoziAPP.apk` |
-| 大小 | 18.33 MB（19,223,836 字节，题库外置后） |
-| MD5 | `5fdf556e33f6418351a0925b46fe35a7` |
+| 大小 | 20.34 MB（21,325,556 字节，题库外置后） |
+| MD5 | `f0200adf66e35d41c760d16d0ead7800` |
 | 内部版本 | V2.8.0 |
 | 包名 | com.jiaozi.sz |
 | 题库总量 | 4,780 道（外置于 `banks/`，按需下载） |
 | 科三学科 | 17 个 |
-| 源码文件数 | 190 个源文件 |
+| 源码文件数 | 115 个源文件 |
 | 最低系统 | Android 8.0 (API 26) |
 | 目标系统 | Android 14 (API 34) |
 | 数据存储 | Room 数据库（Android 沙箱） |
@@ -336,7 +336,7 @@ cd jiaozi-android
 
 #### 安装与运行
 
-- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `5fdf556e33f6418351a0925b46fe35a7`，与发布一致即未被篡改
+- **安装被拦截**：确认已开启"允许安装未知来源"。安装包 MD5 为 `f0200adf66e35d41c760d16d0ead7800`，与发布一致即未被篡改
 - **白屏/卡在启动**：首次启动需初始化本地数据库（约 1-2 秒），属正常；若长时间空白，杀进程重开
 - **题库是空的 / 无法练习**：自 V2.8.0 起题库外置，需在「题库管理」中下载对应科目后才可练习；科目三请先设置报考学段再下载
 - **鸿蒙系统兼容**：部分国产 ROM 需手动授权安装权限
@@ -367,7 +367,19 @@ cd jiaozi-android
 - **按学段真拆包**：科目三按报考学段拆分文件，只下载本学段（初中约 1.8 MB / 高中约 1.9 MB）；切换学段自动清理旧学段文件
 - **按学段筛题**：练习与模考按当前报考学段筛题（本学段题目 + 通用题目），科目一、科目二两科通用
 - **细节改进**：加载骨架屏与空状态引导、二级页悬浮返回键、搜索直达高亮定位、关键操作二次确认
-- 源码 190 个文件，题库 4,780 道（外置于仓库根目录 `banks/`）
+- 源码 115 个文件，题库 4,780 道（外置于仓库根目录 `banks/`）
+
+#### V2.8.0 修订（2026-10-01）
+
+在 V2.8.0 首发基础上继续打磨，**版本号与下载链接均未变化**，安装包已更新为修订版；覆盖安装即可，学习数据完整保留。
+
+- **新增「薄弱点攻坚」**：独立于备课的错题复盘模块；练习结算页可一键将本轮错题生成攻坚笔记（按章节自动归并），
+  笔记支持新建 / 编辑 / 删除并按科目归类，数据仅存本机
+- **缺陷修复**：练习答题页挖孔屏顶部多余留白；题库管理页缺少返回键；报考学段页出现两个返回键；
+  「一键补齐缺失」未选学段时静默失败（现弹框提示并在选定后自动继续）
+- **视觉优化**：深色模式页底加深、卡片层次拉开；设置 / 返回 / 关闭三圆钮图标色与底部导航未选中态统一；
+  卡片阴影两级规范（卡片轻投影 / 悬浮件明显浮起）；全站字号与圆角归一；底部导航栏毛玻璃质感重做
+- 源码 115 个文件，题库 4,780 道
 
 #### V2.77（versionCode 81）— 应用内更新检测
 
@@ -437,12 +449,12 @@ limitations under the License.
 |------|-------|
 | Release | V2.8.0 |
 | Questions | 4,780 (Subject 1: 595 / Subject 2: 429 / Subject 3: 3,756 across 17 subjects), **externalized** in `banks/` and downloaded on demand |
-| Package | `JiaoziAPP.apk` (18.33 MB / 19,223,836 bytes, without question banks) |
-| File Integrity | MD5: `5fdf556e33f6418351a0925b46fe35a7` |
+| Package | `JiaoziAPP.apk` (20.34 MB / 21,325,556 bytes, without question banks) |
+| File Integrity | MD5: `f0200adf66e35d41c760d16d0ead7800` |
 | Min OS | Android 8.0 (API 26) |
 | Network | Core features are fully offline; only AI commentary and sync require internet |
-| Source Code | 190 source files, fully open source |
-| Build Tools | Gradle 8.9 + AGP 8.4.2 + Kotlin 1.9.24 |
+| Source Code | 115 source files, fully open source |
+| Build Tools | Gradle 8.9 + AGP 8.7.0 + Kotlin 2.1.20 |
 | Author | BadCodeZ |
 
 ### Related Projects
@@ -494,7 +506,7 @@ cd jiaozi-android
 
 | Category | Technology |
 |----------|-----------|
-| Language | Kotlin 1.9.24 |
+| Language | Kotlin 2.1.20 |
 | UI | Jetpack Compose + Material 3 |
 | Architecture | MVVM + Repository Pattern |
 | Persistence | Room (SQLite) |
@@ -502,7 +514,7 @@ cd jiaozi-android
 | DI | Hilt |
 | Navigation | Compose Navigation |
 | Network | OkHttp / Retrofit |
-| Build | Gradle 8.9 + AGP 8.4.2 |
+| Build | Gradle 8.9 + AGP 8.7.0 |
 | Min SDK | 26 (Android 8.0) |
 | Target SDK | 34 (Android 14) |
 
@@ -515,7 +527,20 @@ cd jiaozi-android
 - Question banks moved out of the APK and downloaded on demand, plus a new bank management screen
 - Subject 3 banks split by exam stage (junior/senior), only the relevant file is downloaded
 - Practice and mock exams filter questions by the selected exam stage
-- 190 source files; 4,780 questions shipped in `banks/`
+- 115 source files; 4,780 questions shipped in `banks/`
+
+#### V2.8.0 Revision (2026-10-01)
+
+Polish on top of the initial V2.8.0 release. **Version number and download link are unchanged**; the APK has been
+updated in place, and installing over an existing build keeps all study data.
+
+- **New "Weak Spot Drill"**: a mistake-review module separate from lesson planning; the practice summary screen can
+  turn this round's mistakes into a drill note with automatic chapter grouping
+- **Fixes**: extra top padding on notched devices in the practice session; missing back button on the bank manager;
+  duplicated back button on the exam-stage page; silent failure of the "fill missing banks" action without a stage chosen
+- **Visual**: deeper dark-mode page background with stronger card separation; circular button icon color aligned with
+  the bottom navigation; two-tier card shadow tokens; normalized font sizes and corner radii; frosted-glass bottom bar
+- 115 source files, 4,780 questions
 
 #### V2.77 — In-app Update Check
 
