@@ -11,6 +11,13 @@ object AppPalette {
     val c_52000000 = Color(0x52000000)
     val c_ff071b2e = Color(0xff071b2e)
     val c_ff0b2e5c = Color(0xff0b2e5c)
+    // 🔴 2026-10-01 十七校（C-1 裁定）：**暗态页底由 #121212 压到 #0A0A0A**。
+    //   依据：参考 UFIPanel 页底为纯黑，本工程原 #121212（18 阶）与之差 18 阶；
+    //   压到 #0A0A0A（10 阶）后「页底→卡片(#242424=36)」反差 = **26 阶**（原 18 阶），
+    //   贴近参考的 36 阶而不走纯黑（纯黑在 OLED 上边缘发晕、显廉价）。
+    //   落在三处语义槽：background / surface / surfaceContainerLow（见 Theme.kt）。
+    val c_ff0a0a0a = Color(0xff0a0a0a)
+    // 注：#121212 仍在用 —— 仅作 [DarkSemantic].capsuleFg（浅灰胶囊上的深字，属前景，不随页底变）。
     val c_ff121212 = Color(0xff121212)
     val c_ff13283f = Color(0xff13283f)
     val c_ff14291f = Color(0xff14291f)

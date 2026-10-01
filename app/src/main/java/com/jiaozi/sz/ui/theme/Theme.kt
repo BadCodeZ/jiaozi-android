@@ -114,25 +114,31 @@ private val HyperDark = darkColorScheme(
     onError = Color.Black,
     errorContainer = AppPalette.c_ff2e0603,
     onErrorContainer = AppPalette.c_ffffdad6,
-    background = AppPalette.c_ff121212,
+    // 🔴 2026-10-01 十七校（C-1 裁定 · 杰哥：「压」）：**暗态页底 #121212 → #0A0A0A**。
+    //   参考 UFIPanel 页底为纯黑；压到 #0A0A0A（10 阶）后与卡片 #242424（36 阶）反差 = **26 阶**，
+    //   较原 18 阶提升 44%，贴近参考 36 阶；不走纯黑是保留一丝深灰克制（纯黑 OLED 边缘发晕、显廉价）。
+    //   三处语义槽同步：background / surface / surfaceContainerLow。未选中图标/文字无变化（前景图标色未动）。
+    background = AppPalette.c_ff0a0a0a,
     // 🔴 2026-10-01 十五校：暗态前景由 #E0E0E0 提到 **#F2F2F2**。
     //   实测依据：参考图深色导航「未选中」图标/文字 = **#F2F2F2**，本工程同位置 = #E0E0E0（亮 18 阶差）。
     //   对比度复核：onSurface(#F2F2F2) / surface(#121212) = **16.7:1**、
     //   onSurface(#F2F2F2) / surfaceContainer(#242424) = **14.0:1** ⇒ 远高于 AA，安全。
     onBackground = AppPalette.c_fff2f2f2,
-    surface = AppPalette.c_ff121212,
+    // 🔴 2026-10-01 十七校（C-1）：surface 与 background 恒等（全站页底口径），同步 #0A0A0A。
+    surface = AppPalette.c_ff0a0a0a,
     onSurface = AppPalette.c_fff2f2f2,
     surfaceVariant = AppPalette.c_ff1f1f1f,
     onSurfaceVariant = AppPalette.c_ffb0b0b0,
     surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = AppPalette.c_ff121212,
+    // 🔴 2026-10-01 十七校（C-1）：surfaceContainerLow 跟页底走（与 background 同值），同步 #0A0A0A。
+    surfaceContainerLow = AppPalette.c_ff0a0a0a,
     // 🔴 2026-10-01 十五校：**卡片层次整体上移一档**（唯一改动 = 三个 surfaceContainer 档）。
     //   实证（真机截图 vs 参考图量测）：
     //     参考图「页底→卡片」反差 = #000000 → #242424 = **36 阶**（卡片一眼起层）；
     //     本工程「页底→卡片」反差 = #121212 → #1A1A1A = **仅 8 阶**（卡片几乎糊在页底上，
     //     只能靠 outlineVariant 发丝边勾轮廓）—— 这是与参考图第二个单点差异。
-    //   修法：卡片取参考图的**同一个色值** #242424（页底保持不变 #121212 ⇒ 反差 8→**18**，
-    //   提升 2.25×；不把页底压到纯黑是为了不推翻全站既有暗色基线）。
+    //   修法：卡片取参考图的**同一个色值** #242424（页底原 #121212 ⇒ 反差 8→**18**，提升 2.25×）。
+    //   🔴 十七校（C-1）再进一步：页底压到 #0A0A0A ⇒ 反差 18→**26 阶**，逼近参考 36 阶。
     //   高/最高两档同步递推 +8，保持三档之间的原有间距（8/8）不变。
     surfaceContainer = AppPalette.c_ff242424,
     surfaceContainerHigh = AppPalette.c_ff2c2c2c,

@@ -6,6 +6,7 @@ build/
 .idea/
 *.iml
 .gradle/
+.kotlin/
 
 # 系统
 Thumbs.db

@@ -118,7 +118,9 @@ val DarkSemantic = AppSemantic(
     success = AppPalette.c_ff4dbe8c, warning = AppPalette.c_ffe0a94a, purple = AppPalette.c_ff9e8fcb, danger = AppPalette.c_ffe97266,
     blue = AppPalette.c_ff4c9df8, blueLight = AppPalette.c_ff14334f, blueBg = AppPalette.c_ff13283f,
     purpleBg = AppPalette.c_ff232030, greenBg = AppPalette.c_ff14291f, redBg = AppPalette.c_ff2e1a18,
-    bg = AppPalette.c_ff121212, textPrimary = AppPalette.c_fff2f2f2, textSecondary = AppPalette.c_ffb0b0b0, trackGray = AppPalette.c_ff363636,
+    // 🔴 2026-10-01 十七校（C-1）：页底语义随 Theme 同步 #121212 → **#0A0A0A**（全站页面底一致）。
+    //   注意下方 capsuleFg 仍为 #121212 —— 那是**浅灰胶囊(#E0E0E0)上的深字**，属前景，不随页底变。
+    bg = AppPalette.c_ff0a0a0a, textPrimary = AppPalette.c_fff2f2f2, textSecondary = AppPalette.c_ffb0b0b0, trackGray = AppPalette.c_ff363636,
     warningBg = AppPalette.c_ff2a2118,
     teal = AppPalette.c_ff4fc9ba,
     capsuleBg = AppPalette.c_ffe0e0e0, capsuleFg = AppPalette.c_ff121212
