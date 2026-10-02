@@ -6,6 +6,7 @@ import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.GroupTitle
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.HubChip
 import com.jiaozi.sz.ui.components.NavRowCard
@@ -15,7 +16,6 @@ import com.jiaozi.sz.ui.components.hubDragToScroll
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -31,7 +31,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,9 +41,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +108,9 @@ fun BankScreen(nav: NavHostController) {
     LaunchedEffect(Unit) { appeared = true }
     val contentAlpha by animateFloatAsState(if (appeared) 1f else 0f, tween(Motion.duration(rm, Motion.SLOW)), label = "bankFade")
 
+    // 🔴 2026-10-02 UI 密度改造：固定带 Step1 → 5 宫格，「更多资料」半屏 sheet
+    var showMore by remember { mutableStateOf(false) }
+
     // 学科筛选：默认「科一」（与高保真一致）
     val subjectTabs = listOf("科一", "科二", "科三", "全部")
     var filter by remember { mutableStateOf("科一") }
@@ -138,7 +139,8 @@ fun BankScreen(nav: NavHostController) {
 
     val listState = rememberLazyListState()
 
-    // 七个资料入口（E4）：4 列 + 3 列，全部留在固定带内
+    // 🔴 2026-10-02 UI 密度改造（DENSITY_PLAN 方案二）：7 宫格 → 5 宫格
+    // 「备课组」「校订」低频入口收进「更多资料」，固定带因此从 4+3 两行收敛为 4+1 两行。
     val quickRow1 = listOf(
         Triple("book", "教材", "books"),
         Triple("text", "课标", "curric"),
@@ -147,8 +149,7 @@ fun BankScreen(nav: NavHostController) {
     )
     val quickRow2 = listOf(
         Triple("note", "知识库", "knowledge"),
-        Triple("lesson", "备课组", "lesson"),
-        Triple("proof", "校订", "proof")
+        Triple("mor", "更多资料", "more")  // 第 5 格，点开「更多资料」半屏 sheet
     )
 
     // 🔴 2026-09-19 沉浸 Hero（对齐高保真稿）：本页各元素本就自带 sp.16
@@ -247,10 +248,10 @@ fun BankScreen(nav: NavHostController) {
                     )
                 }
 
-                // ── E3 搜索胶囊（通栏 / 44dp / r.full，整条可点 → search）──
-                SearchPill(modifier = Modifier) { nav.navigate("search") }
+                // 🔴 2026-10-02 UI 密度改造（方案二①）：删除固定带通栏搜索胶囊
+                //   （Hero 右侧已有 44dp 玻璃搜索钮直达 search，通栏胶囊冗余，删省 44dp+12dp）。
 
-                // ── E4 快捷入口组（4 列 + 3 列，均在固定带内）──
+                // ── E4 快捷入口组（4 列 + 1 列 = 5 宫格，固定带瘦身两行→两行但行2 2列占比更小）──
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -264,20 +265,13 @@ fun BankScreen(nav: NavHostController) {
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     quickRow2.forEach { (icon, label, route) ->
-                        HubChip(icon, label, { nav.navigate(route) }, Modifier.weight(1f))
+                        HubChip(icon, label, {
+                            if (route == "more") showMore = true else nav.navigate(route)
+                        }, Modifier.weight(1f))
                     }
-                    Spacer(Modifier.weight(1f))
+                    // 第 2 列占位，保证与行1 4 列不对齐到最右
+                    Spacer(Modifier.weight(2f))
                 }
-
-                // 🔴 2026-09-28 题库外置：题库管理入口（下载/移除科目包 + 增删自加题）
-                NavRowCard(
-                    icon = "download",
-                    title = "题库管理",
-                    subtitle = "下载 / 移除科目包，增删本地自加题",
-                    iconTint = AppColors.blue,
-                    iconBg = AppColors.blueLight,
-                    onClick = { nav.navigate("bankmanage") }
-                )
                 }
             }
 
@@ -345,38 +339,57 @@ fun BankScreen(nav: NavHostController) {
                     )
                 }
             }
+
+            // 🔴 2026-10-02 UI 密度改造（方案二③）：题库管理从固定带下沉到章节列表末尾
+            //   （管理类＝低频，归入滚动区底部，不再占首屏固定带高度）。
+            item(key = "bankManageBottom") { GroupTitle("题库管理", Modifier.padding(top = 8.dp)) }
+            item(key = "bankManageCard") {
+                NavRowCard(
+                    icon = "download",
+                    title = "题库管理",
+                    subtitle = "下载 / 移除科目包，增删本地自加题",
+                    iconTint = AppColors.blue,
+                    iconBg = AppColors.blueLight,
+                    onClick = { nav.navigate("bankmanage") }
+                )
+            }
         }
     }
-}
 
-/** E3 搜索胶囊：通栏 44dp / r.full / surfaceContainer 实底 + 1dp outlineVariant 描边 */
-@Composable
-private fun SearchPill(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50))
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Icon(
-            appPainter("search"),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(20.dp)
-        )
-        Text(
-            "搜索题目 / 知识点 / 章节",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 14.sp,
-            maxLines = 1
-        )
+    // ──「更多资料」半屏 sheet：收纳低频入口（备课组 / 校订），第 5 宫格点开 ──
+    if (showMore) {
+        ModalBottomSheet(onDismissRequest = { showMore = false }) {
+            Column(
+                Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("更多资料", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                NavRowCard(
+                    icon = "lesson",
+                    title = "备课组",
+                    subtitle = "按知识点整理的备课资料",
+                    iconTint = AppColors.blue,
+                    iconBg = AppColors.blueLight,
+                    onClick = { nav.navigate("lesson"); showMore = false }
+                )
+                NavRowCard(
+                    icon = "proof",
+                    title = "校订",
+                    subtitle = "校对 / 修订题目内容",
+                    iconTint = AppColors.blue,
+                    iconBg = AppColors.blueLight,
+                    onClick = { nav.navigate("proof"); showMore = false }
+                )
+                NavRowCard(
+                    icon = "note",
+                    title = "知识库",
+                    subtitle = "所有科目资料汇总",
+                    iconTint = AppColors.blue,
+                    iconBg = AppColors.blueLight,
+                    onClick = { nav.navigate("knowledge"); showMore = false }
+                )
+            }
+        }
     }
 }
 
