@@ -37,9 +37,11 @@ import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.MiniBadge
 import com.jiaozi.sz.ui.components.NavRowCard
 import com.jiaozi.sz.ui.components.QuickActionCard
+import com.jiaozi.sz.ui.components.Radius
 import com.jiaozi.sz.ui.components.SectionTitleDot
 import com.jiaozi.sz.ui.components.StatCard
 import com.jiaozi.sz.ui.components.hubDragToScroll
+import com.jiaozi.sz.ui.components.rememberPressFeedback
 import com.jiaozi.sz.ui.PracticeState
 import com.jiaozi.sz.util.todayIso
 
@@ -54,9 +56,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -67,6 +72,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -77,6 +83,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -284,30 +292,112 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
                 }
             }
 
-            // ── E5 快速开始（随机全科，沿用当前题量 / 穿插 / 答案偏好）──
+            // ── 方案A：快速开始 → 全宽主卡（Hero 正下方第一视觉焦点）──
+            // 亮点：48dp 渐变大图标 + 左侧渐变细条 + 左下题量胶囊「$num 题 · 随机全科」，
+            // 点击沿用原逻辑（checkIn + 随机全科 start）。
             item(key = "entryQuick") {
-                NavRowCard(
-                    icon = "star",
-                    title = "快速开始",
-                    subtitle = "随机抽题 · 立即练习",
-                    iconTint = Color.White,
-                    iconBg = AppColors.purple,
-                    containerColor = AppColors.purpleBg,
+                val buildQuickConfig = {
+                    PracticeConfig(
+                        mode = "随机全科",
+                        num = num,
+                        interleave = interleave,
+                        showAnswer = showAnswer,
+                        disc = disc,
+                        stage = stageFilter
+                    )
+                }
+                val press = rememberPressFeedback(scale = 0.98f, alpha = 0.9f)
+                Card(
                     onClick = {
                         appVm.checkIn()
-                        vm.start(
-                            PracticeConfig(
-                                mode = "随机全科",
-                                num = num,
-                                interleave = interleave,
-                                showAnswer = showAnswer,
-                                disc = disc,
-                                stage = stageFilter
-                            )
+                        vm.start(buildQuickConfig())
+                    },
+                    modifier = Modifier.fillMaxWidth().then(press.modifier),
+                    interactionSource = press.interactionSource,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                    elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Box(Modifier.fillMaxWidth()) {
+                        // 左侧企鹅蓝渐变竖条（主视觉焦点标记，不抢文字）
+                        Box(
+                            Modifier
+                                .align(Alignment.CenterStart)
+                                .width(4.dp)
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(AppColors.blue, AppColors.blue.copy(alpha = 0f))
+                                    )
+                                )
                         )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(Radius.sm))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(AppColors.blueLight, AppColors.blue.copy(alpha = 0.55f))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(appPainter("star"), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(24.dp))
+                            }
+                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    "快速开始",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    "随机抽题 · 立即练习",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppColors.textSecondary,
+                                    fontSize = 13.sp,
+                                    maxLines = 1
+                                )
+                            }
+                            Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
+                        }
                     }
-                )
+                    // 左下角题量胶囊（当前偏好摘要）
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(100.dp))
+                                .background(AppColors.blue.copy(alpha = 0.1f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "$num 题 · $subjLabel · ${if (timedMode) "限时" else "不限时"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppColors.blue,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
             }
+
+            // ── 方案A：「选择练习方式」组（按范围全宽 + AI/模考 2 列宫格，替换原两条整行）──
+            item(key = "methodHead") { GroupTitle("选择练习方式", Modifier.padding(top = 8.dp)) }
 
             // ── E5 按范围练习（章节 / 知识点多选 → practicesetup 已含「选择章节」区）──
             item(key = "entryScope") {
@@ -322,67 +412,56 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
                 )
             }
 
-            // ── E6 AI 生成（🔴 04 号 anti_pattern：不用紫/炫彩底，走企鹅蓝族）──
-            item(key = "entryAi") {
-                NavRowCard(
-                    icon = "lesson",
-                    title = "AI 生成",
-                    subtitle = "智能出题 · 个性化练习",
-                    iconTint = Color.White,
-                    iconBg = AppColors.blue,
-                    containerColor = AppColors.blueLight,
-                    onClick = { nav.navigate("aigen") }
-                )
-            }
-
-            // ── E9 模考入口（通栏；暖底 + 红 chevron，与图中一致。进入限时会话后底部导航自动隐藏）──
-            item(key = "entryMock") {
-                NavRowCard(
-                    icon = "clock",
-                    title = "限时模考",
-                    subtitle = "全真模拟 · 检验水平",
-                    iconTint = Color.White,
-                    iconBg = AppColors.warning,
-                    containerColor = AppColors.redBg,
-                    chevronTint = AppColors.danger,
-                    onClick = { showMock = true }
-                )
-            }
-
-            // ── E8 复习巩固（本页唯一圆点标题）──
-            item(key = "reviewHead") { SectionTitleDot("复习巩固", trailing = "错题 ${wrongIds.size} 道") }
-            item(key = "reviewQuick") {
+            // ── 方案A：E6 AI 生成 + E9 限时模考 收敛为 2 列宫格（从全宽降噪）──
+            item(key = "methodGrid") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     QuickActionCard(
-                        "inbox", "错题本", "${wrongIds.size} 道待清", "wrong",
-                        onClick = { vm.startWrong(disc) },
+                        "lesson", "AI 生成", "智能出题 · 个性化练习", "practice",
+                        onClick = { nav.navigate("aigen") },
                         modifier = Modifier.weight(1f)
                     )
                     QuickActionCard(
-                        "target", "薄弱优先", "智能暴露薄弱点", "weak",
-                        onClick = { vm.start(PracticeConfig(mode = "薄弱优先", num = num, interleave = interleave, disc = disc, stage = stageFilter)) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickActionCard(
-                        "clock", "待复习", "$dueCount 题到期", "mock",
-                        onClick = {
-                            appVm.checkIn()
-                            vm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc, stage = stageFilter))
-                        },
+                        "clock", "限时模考", "全真模拟 · 检验水平", "mock",
+                        onClick = { showMock = true },
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
-            item(key = "reviewCause") {
-                NavRowCard(
-                    icon = "brain",
-                    title = "错因强化",
-                    subtitle = "按错因精准补强 · 概念不清 / 审题偏差 / 记忆模糊…",
-                    iconTint = Color.White,
-                    iconBg = AppColors.purple,
-                    containerColor = AppColors.purpleBg,
-                    onClick = { showCausePicker = true }
-                )
+
+            // ── E8 复习巩固（本页唯一圆点标题）──
+            item(key = "reviewHead") { SectionTitleDot("复习巩固", trailing = "错题 ${wrongIds.size} 道") }
+            // ── 方案A：原 3col 宫格 + 错因强化独立整行 → 收敛为 2×2 宫格（4 格）──
+            // 错因强化从整行降为第 4 格；「按范围练习」已承担主路径，复习区不该再堆两行。
+            item(key = "reviewQuick") {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        QuickActionCard(
+                            "inbox", "错题本", "${wrongIds.size} 道待清", "wrong",
+                            onClick = { vm.startWrong(disc) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        QuickActionCard(
+                            "target", "薄弱优先", "智能暴露薄弱点", "weak",
+                            onClick = { vm.start(PracticeConfig(mode = "薄弱优先", num = num, interleave = interleave, disc = disc, stage = stageFilter)) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        QuickActionCard(
+                            "clock", "待复习", "$dueCount 题到期", "mock",
+                            onClick = {
+                                appVm.checkIn()
+                                vm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc, stage = stageFilter))
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        QuickActionCard(
+                            "brain", "错因强化", "按错因精准补强", "wrong",
+                            onClick = { showCausePicker = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
             }
 
             // ── E7 练习设置（整行入口，摘要随偏好实时刷新）──

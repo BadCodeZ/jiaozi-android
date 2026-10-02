@@ -134,7 +134,7 @@ object BankRemote {
                 connectTimeout = CONNECT_TIMEOUT
                 readTimeout = READ_TIMEOUT
                 instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "JiaoziExam/2.8.0")
+                setRequestProperty("User-Agent", "JiaoziExam/2.8.1")
             }
         } catch (e: Exception) {
             Log.e("BankRemote", "fetch $remoteCode 建连异常（${src.name}）", e)
