@@ -28,13 +28,24 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
 
+        <!--
+          🔴 2026-10-02 键盘吸顶修复（真机缺陷）：
+          原先不声明 windowSoftInputMode ⇒ 系统按 ADJUST_UNSPECIFIED 解析。
+          本应用 content 是单个 ComposeView（`canScrollVertically()` 恒为 false），
+          系统据此判为 **adjustPan**：键盘弹起时把**整个窗口**整体上移一个键盘高。
+          而 ai 对话页自身又有 `imePadding()`（再让位一个键盘高）⇒ 位移叠加 ≈ 2×键盘高，
+          表现为「输入框浮在屏幕中部、顶部标题栏被推出屏外」。
+          改 `adjustResize` 后系统不再平移窗口，键盘让位**统一由 Compose 的 IME inset 承担**
+          （见 AppNav 内容容器的 `imePadding()`），各输入页在键盘下均正确可见。
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|keyboardHidden|uiMode"
             android:theme="@style/Theme.Jiaozi"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

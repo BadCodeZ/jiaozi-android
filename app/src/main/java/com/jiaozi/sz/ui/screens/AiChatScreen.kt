@@ -3,23 +3,25 @@ import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.IconBadge
+import com.jiaozi.sz.ui.components.toRichText
 
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -154,7 +156,10 @@ fun AiChatScreen(nav: NavHostController) {
     // 流式输出时跟随逐字生成：同样仅在贴近底部时跟随，用户上滑看前文则不抢滚动
     LaunchedEffect(streaming) { if (streaming != null && isNearBottom) listState.scrollToItem(visible.size) }
 
-        Column(Modifier.fillMaxSize().imePadding().navigationBarsPadding().padding(bottom = 16.dp)) {
+    // 🔴 2026-10-02 键盘让位改由 AppNav 内容容器**统一**承担（`imePadding()` 已移到那里）。
+    //    本页原来自带 `imePadding()` + 系统 adjustPan 平移窗口 ⇒ 双重上移，输入行浮在屏幕中部、
+    //    顶部标题栏被推出屏外（杰哥真机截图缺陷）。现只保留横向/底部留白，不再重复让位。
+    Column(Modifier.fillMaxSize().navigationBarsPadding().padding(bottom = 16.dp)) {
         // 顶部栏：标题 + 新建对话 + 菜单
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
             Text("AI 助手", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -343,26 +348,35 @@ fun AiChatScreen(nav: NavHostController) {
 @Composable
 private fun ChatBubble(m: AiChatEntity) {
     val isUser = m.role == "user"
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Top
-    ) {
-        if (!isUser) {
-            IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(12.dp))
-            Spacer(Modifier.width(8.dp))
-        }
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
-            ),
-            modifier = Modifier.fillMaxWidth(0.78f),
-            elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
-            Text(m.content, style = MaterialTheme.typography.bodyMedium, fontSize = 14.sp, modifier = Modifier.padding(12.dp))
-        }
-        if (isUser) {
-            Spacer(Modifier.width(8.dp))
-            IconBadge("person", AppColors.blue, size = 30.dp, shape = CircleShape)
+    // 🔴 2026-10-02 气泡宽度改为「随内容自适应」（原 `Modifier.fillMaxWidth(0.78f)` 把气泡**钉死**成
+    //    固定 78% 宽 —— 短句「一般出成绩是什么时候」也被撑成整行，右侧留白突兀）。
+    //    现只给**上限**：外层 BoxWithConstraints 量出行宽 ⇒ 上限 = 78%（给头像槽位留白），
+    //    Card 默认包裹内容 ⇒ 短文本收窄、长文本涨到上限后内部换行。
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val maxBubble = maxWidth * 0.78f
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Top
+        ) {
+            if (!isUser) {
+                IconBadge("chat", AppColors.blue, size = 30.dp, shape = RoundedCornerShape(12.dp))
+                Spacer(Modifier.width(8.dp))
+            }
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                ),
+                modifier = Modifier.widthIn(max = maxBubble),
+                elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation)) {
+                // 🔴 2026-10-02 AI 回复常带 Markdown 星号（`**笔试成绩**`），原用 Text 直出 ⇒ 界面上
+                //    露出生星号。经 [toRichText] 解析为**真正的粗体**，星号本身不再显示。
+                Text(m.content.toRichText(), style = MaterialTheme.typography.bodyMedium, fontSize = 14.sp, modifier = Modifier.padding(12.dp))
+            }
+            if (isUser) {
+                Spacer(Modifier.width(8.dp))
+                IconBadge("person", AppColors.blue, size = 30.dp, shape = CircleShape)
+            }
         }
     }
 }

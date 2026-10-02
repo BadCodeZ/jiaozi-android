@@ -16,6 +16,7 @@ import com.jiaozi.sz.ui.components.HeroStatCell
 import com.jiaozi.sz.ui.components.appPainter
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CardTokens
+import com.jiaozi.sz.ui.components.toRichText
 import com.jiaozi.sz.ui.PracticeState
 import kotlin.math.*
 import androidx.compose.foundation.background
@@ -367,7 +368,9 @@ internal fun SummaryView(vm: PracticeViewModel, st: com.jiaozi.sz.ui.PracticeSta
                 when {
                     aiState.explaining -> Text("生成中…", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     aiState.error != null -> Text(aiState.error ?: "", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                    aiState.text != null -> Text(aiState.text ?: "", style = MaterialTheme.typography.bodyMedium)
+                    // 🔴 2026-10-02 同 AI 对话气泡：讲评由模型直出、常带 `**加粗**`，
+                    //    经 toRichText 渲染成真粗体，界面不再露星号（复制到剪贴板仍保留原文）
+                    aiState.text != null -> Text((aiState.text ?: "").toRichText(), style = MaterialTheme.typography.bodyMedium)
                 }
                 if (aiState.text != null) {
                     OutlinedButton(

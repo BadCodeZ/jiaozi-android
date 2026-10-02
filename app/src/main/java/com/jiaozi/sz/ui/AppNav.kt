@@ -459,6 +459,12 @@ fun AppRoot() {
                                     )
                                 )
                             )
+                            // 🔴 2026-10-02 键盘统一让位（配合 Manifest 的 adjustResize）：
+                            //   系统不再平移窗口，改由这里**一次性**把 IME 高度从内容区扣掉 ——
+                            //   所有输入页（共 16 个）无需各自写 imePadding 即可在键盘下正确可见。
+                            //   放在 `.background()` **之后**：渐变背景仍铺满整屏，只有子内容被内缩。
+                            //   ⚠️ 各屏**不要**再自行加 imePadding，否则又变成双重让位（ai 对话页已移除）。
+                            .imePadding()
                     ) {
                         NavHost(
                             nav,
