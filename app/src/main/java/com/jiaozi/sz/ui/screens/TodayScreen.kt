@@ -137,6 +137,9 @@ fun TodayScreen(nav: NavHostController) {
         daily.firstOrNull { it.date == todayKey }?.let { it.right + it.wrong } ?: 0
     }
     val practicedCount = remember(progress) { progress.values.count { it.right + it.wrong > 0 } }
+    // 🔴 2026-10-03 ⑤去假数：快捷入口「错题本」接真实累计错题量（全量 Σwrong），不再写死"34 道待清"
+    val wrongTotal = remember(progress) { progress.values.sumOf { it.wrong } }
+    val dayLeft = remember(todayDone) { (TODAY_GOAL - todayDone).coerceAtLeast(0) }
     val daysLeft = remember(targetDay) {
         if (targetDay.isBlank()) null else runCatching {
             val t = java.time.LocalDate.parse(targetDay).startOfDayMillis()
@@ -339,7 +342,7 @@ fun TodayScreen(nav: NavHostController) {
                     item(key = "quickRow") {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             QuickActionCard(
-                                "play", "继续练习", "12 题未完成", "practice",
+                                "play", "继续练习", "今日剩余 $dayLeft 题", "practice",
                                 onClick = { nav.navigate(Screen.Practice.route) },
                                 modifier = Modifier.weight(1f)
                             )
@@ -349,7 +352,7 @@ fun TodayScreen(nav: NavHostController) {
                                 modifier = Modifier.weight(1f)
                             )
                             QuickActionCard(
-                                "inbox", "错题本", "34 道待清", "wrong",
+                                "inbox", "错题本", if (wrongTotal > 0) "累计 $wrongTotal 道错题" else "暂无错题", "wrong",
                                 onClick = { nav.navigate("proof") },
                                 modifier = Modifier.weight(1f)
                             )

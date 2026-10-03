@@ -655,7 +655,7 @@ fun ChapterRow(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(detail, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 13.sp, maxLines = 1)
             }
-            Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(18.dp))
+            Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.55f), modifier = Modifier.size(18.dp))
         }
     }
 }
@@ -713,7 +713,7 @@ fun SectionTitleDot(
  * 可点导航行卡（CMP-LISTROW · nav 变体）：42dp 圆角图标底衬 → 标题/副文案 → 可选角标 → chevron。
  *
  * 规格（03 / 05 / 07 号共用）：surfaceContainer 实色 + r.medium 20dp + padding 16dp + 投影 2dp；
- * 标题 t.titleSmall SemiBold；副文案 t.bodySmall；chevron 18dp onSurfaceVariant@40%；整卡可点。
+ * 标题 t.titleSmall SemiBold；副文案 t.bodySmall；chevron 18dp onSurfaceVariant@55%；整卡可点。
  * 🔴 卡内**只允许一个跳转语义** —— 禁止再塞「立即开始」按钮（Card 禁忌落地）。
  * 🔴 02 号：卡片用实色 + 投影，**不描边**（描边唯一例外是 GlassBackButton 发丝边）。
  */
@@ -741,7 +741,7 @@ fun NavRowCard(
      * 练习首页按高保真图给「继续练习 / 模考入口」接浅底语义卡时传入。
      */
     containerColor: Color? = null,
-    /** chevron 颜色（可选）。默认 null = onSurfaceVariant@40%；模考入口按图用 danger 红。 */
+    /** chevron 颜色（可选）。默认 null = onSurfaceVariant@55%；模考入口按图用 danger 红。 */
     chevronTint: Color? = null,
     /**
      * 🔴 2026-09-30 新增（修实测缺陷：标题被无差别截断）。
@@ -834,7 +834,7 @@ fun NavRowCard(
             Icon(
                 appPainter("chevron"),
                 contentDescription = null,
-                tint = chevronTint ?: MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                tint = chevronTint ?: MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
                 modifier = Modifier.size(18.dp)
             )
         }
@@ -1186,28 +1186,42 @@ fun HubChip(
     icon: String,
     label: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /** label 上方小字（可选）：复习巩固带量项（如「错题 23」）用，null 不渲染（题库页 5 宫格保持原样） */
+    subtitle: String? = null
 ) {
+    // 🔴 2026-10-03 补 CMP-PRESS：与 NavRowCard 同套按压反馈(scale 0.98 + alpha 0.9)，消除同页手感不一致
+    val press = rememberPressFeedback(scale = 0.98f, alpha = 0.9f)
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().then(press.modifier),
+        interactionSource = press.interactionSource,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(vertical = 14.dp, horizontal = 8.dp),
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(40.dp)
                     .clip(RoundedCornerShape(Radius.sm))
                     .background(AppColors.blueLight),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(appPainter(icon), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(22.dp))
+                Icon(appPainter(icon), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(20.dp))
+            }
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppColors.textSecondary,
+                    fontSize = 11.sp, // 2026-10-03 10sp→11sp 提升副标题对比度/可读性(对照度红线)
+                    maxLines = 1
+                )
             }
             Text(
                 label,
@@ -1216,6 +1230,83 @@ fun HubChip(
                 color = AppColors.textPrimary,
                 fontSize = 13.sp,
                 maxLines = 1
+            )
+        }
+    }
+}
+
+/**
+ * 横向行式宫格小块（练习页「选择练习方式 / 复习巩固」用，2026-10-03 新增）。
+ *
+ * 与竖排方块 [HubChip] 的区别：左 icon + 右侧标题/副标题 + 最右 chevron 的行式排布，
+ * 用右侧箭头强化「可点击」视觉信号（对齐 NavRowCard 的行式语言，但保持紧凑 2 列宫格宽）。
+ * 题库页 5 宫格保持 [HubChip] 方块式，不共用本组件的行式，避免全站宫格风格漂移。
+ */
+@Composable
+fun HubChipRow(
+    icon: String,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    /** label 下方小字（可选）：复习巩固带量项（如「错题 23」）。null 不渲染。 */
+    subtitle: String? = null,
+    iconTint: Color = AppColors.blue,
+    iconBg: Color = AppColors.blueLight
+) {
+    // 🔴 2026-10-03 与 HubChip 同套按压反馈(scale 0.98 + alpha 0.9)，保持同页手感一致
+    val press = rememberPressFeedback(scale = 0.98f, alpha = 0.9f)
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth().then(press.modifier),
+        interactionSource = press.interactionSource,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(Radius.sm))
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(appPainter(icon), contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = AppColors.textPrimary,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppColors.textSecondary,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+            // 最右箭头：强化「可点击」视觉信号（chetron 提至 55% 对比，与 #598 口径一致）
+            Icon(
+                appPainter("chevron"),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                modifier = Modifier.size(16.dp)
             )
         }
     }

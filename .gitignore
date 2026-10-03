@@ -33,3 +33,6 @@ tools/
 
 # 安装包二进制（发布产物，走 GitHub Releases 分发，不入版本库）
 *.apk
+
+# 本地 Taste 审计临时截图（不入版本库）
+_taste_audit/

@@ -32,11 +32,13 @@ import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.ChapterRow
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.ErrorInline
 import com.jiaozi.sz.ui.components.GroupTitle
 import com.jiaozi.sz.ui.components.HeroHeader
+import com.jiaozi.sz.ui.components.HubChip
+import com.jiaozi.sz.ui.components.HubChipRow
 import com.jiaozi.sz.ui.components.MiniBadge
 import com.jiaozi.sz.ui.components.NavRowCard
-import com.jiaozi.sz.ui.components.QuickActionCard
 import com.jiaozi.sz.ui.components.Radius
 import com.jiaozi.sz.ui.components.SectionTitleDot
 import com.jiaozi.sz.ui.components.StatCard
@@ -276,6 +278,21 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
                 }
             }
 
+            // ── ①错误态（2026-10-03 补 error 内联）：题库真空时不空转，给可恢复提示 ──
+            val bankEmpty = repo.bank.exam.isEmpty()
+            if (bankEmpty) {
+                item(key = "bankEmptyError") {
+                    ErrorInline(
+                        icon = "book",
+                        title = "题库加载异常",
+                        hint = "本地题库为空，可能未成功装载。请到下载页检查题库。",
+                        retry = { nav.navigate("bankdownload") },
+                        retryText = "去下载题库",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             // ── E3 继续练习（只在有练习历史时渲染；无历史不渲染灰化卡）──
             if (hasHistory) {
                 item(key = "entryContinue") {
@@ -412,16 +429,17 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
                 )
             }
 
-            // ── 方案A：E6 AI 生成 + E9 限时模考 收敛为 2 列宫格（从全宽降噪）──
+            // ── 方案A：E6 AI 生成 + E9 限时模考 收敛为 2 列紧凑小块（对齐题库页 5 宫格 HubChip）──
+            // 2026-10-03 改用横向行式 HubChipRow：左图标+右标题/副标题+右箭头，强化可点击视觉信号
             item(key = "methodGrid") {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    QuickActionCard(
-                        "lesson", "AI 生成", "智能出题 · 个性化练习", "practice",
+                    HubChipRow(
+                        "lesson", "AI 生成",
                         onClick = { nav.navigate("aigen") },
                         modifier = Modifier.weight(1f)
                     )
-                    QuickActionCard(
-                        "clock", "限时模考", "全真模拟 · 检验水平", "mock",
+                    HubChipRow(
+                        "clock", "限时模考",
                         onClick = { showMock = true },
                         modifier = Modifier.weight(1f)
                     )
@@ -430,33 +448,36 @@ internal fun PracticeHome(vm: PracticeViewModel, appVm: AppViewModel, nav: NavHo
 
             // ── E8 复习巩固（本页唯一圆点标题）──
             item(key = "reviewHead") { SectionTitleDot("复习巩固", trailing = "错题 ${wrongIds.size} 道") }
-            // ── 方案A：原 3col 宫格 + 错因强化独立整行 → 收敛为 2×2 宫格（4 格）──
-            // 错因强化从整行降为第 4 格；「按范围练习」已承担主路径，复习区不该再堆两行。
+            // ── 方案A：原 3col 宫格 + 错因强化独立整行 → 收敛为 2 列紧凑小块（对齐题库页 5 宫格 HubChip）──
+            // 错因强化从整行降为第 4 格；「按范围练习」已承担主路径，复习区不该再堆两行大卡。
+            // 2026-10-03 改用横向行式 HubChipRow（左图标+标题/副标题+右箭头），与「选择练习方式」区统一手感
             item(key = "reviewQuick") {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 2026-10-03 用 Column(spacedBy 12) 统一两行行距，替代第二行 Row 自带的 padding(top)，
+                // 消除第二行卡片被垂直约束导致副标题不渲染的问题（与「选择练习方式」方法格同构）
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            "inbox", "错题本", "${wrongIds.size} 道待清", "wrong",
+                        HubChipRow(
+                            "inbox", "错题本", subtitle = "${wrongIds.size} 道",
                             onClick = { vm.startWrong(disc) },
                             modifier = Modifier.weight(1f)
                         )
-                        QuickActionCard(
-                            "target", "薄弱优先", "智能暴露薄弱点", "weak",
+                        HubChipRow(
+                            "target", "薄弱优先", subtitle = "智能补弱",
                             onClick = { vm.start(PracticeConfig(mode = "薄弱优先", num = num, interleave = interleave, disc = disc, stage = stageFilter)) },
                             modifier = Modifier.weight(1f)
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        QuickActionCard(
-                            "clock", "待复习", "$dueCount 题到期", "mock",
+                        HubChipRow(
+                            "clock", "待复习", subtitle = "$dueCount 题",
                             onClick = {
                                 appVm.checkIn()
                                 vm.start(PracticeConfig(mode = "仅复习", num = 20, disc = disc, stage = stageFilter))
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        QuickActionCard(
-                            "brain", "错因强化", "按错因精准补强", "wrong",
+                        HubChipRow(
+                            "brain", "错因强化", subtitle = "按错因补强",
                             onClick = { showCausePicker = true },
                             modifier = Modifier.weight(1f)
                         )

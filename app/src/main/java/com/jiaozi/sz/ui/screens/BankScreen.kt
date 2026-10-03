@@ -6,12 +6,15 @@ import com.jiaozi.sz.ui.components.GlassIconButton
 import com.jiaozi.sz.ui.components.AppColors
 import com.jiaozi.sz.ui.components.CollapsingTopBlocks
 import com.jiaozi.sz.ui.components.EmptyHint
+import com.jiaozi.sz.ui.components.ErrorInline
 import com.jiaozi.sz.ui.components.GroupTitle
 import com.jiaozi.sz.ui.components.HeroHeader
 import com.jiaozi.sz.ui.components.HubChip
 import com.jiaozi.sz.ui.components.NavRowCard
+import com.jiaozi.sz.ui.components.Radius
 import com.jiaozi.sz.ui.components.SectionTitleDot
 import com.jiaozi.sz.ui.components.StatCard
+import com.jiaozi.sz.ui.components.CardTokens
 import com.jiaozi.sz.ui.components.hubDragToScroll
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -31,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +44,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -311,15 +318,26 @@ fun BankScreen(nav: NavHostController) {
             item(key = "chapterTitle") { SectionTitleDot("章节题量", trailing = "共 ${chapterData.size} 章") }
 
             if (chapterData.isEmpty()) {
-                // ── E10 空态 ──
+                // ── E10 空态 / ①错误态（2026-10-03 补 error 内联：题库彻底为空用语义化 ErrorInline，筛空用 EmptyHint）──
                 item(key = "chapterEmpty") {
-                    EmptyHint(
-                        icon = "book",
-                        title = "题库还是空的",
-                        hint = "先去章节管理导入或建立章节",
-                        modifier = Modifier.fillMaxWidth(),
-                        action = { Button(onClick = { nav.navigate("chapters") }) { Text("章节管理") } }
-                    )
+                    if (totalQuestions == 0) {
+                        ErrorInline(
+                            icon = "book",
+                            title = "题库加载异常",
+                            hint = "本地题库为空，可能未成功装载。请重试加载，或到下载页检查题库。",
+                            retry = { nav.navigate("bankdownload") },
+                            retryText = "去下载题库",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        EmptyHint(
+                            icon = "book",
+                            title = "题库还是空的",
+                            hint = "先去章节管理导入或建立章节",
+                            modifier = Modifier.fillMaxWidth(),
+                            action = { Button(onClick = { nav.navigate("chapters") }) { Text("章节管理") } }
+                        )
+                    }
                 }
             } else {
                 // ── E7 章节题量卡（CMP-LISTROW / nav 变体：标题 + 指标 + 进度条 + chevron）──
@@ -361,34 +379,46 @@ fun BankScreen(nav: NavHostController) {
         ModalBottomSheet(onDismissRequest = { showMore = false }) {
             Column(
                 Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("更多资料", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                NavRowCard(
-                    icon = "lesson",
-                    title = "备课组",
-                    subtitle = "按知识点整理的备课资料",
-                    iconTint = AppColors.blue,
-                    iconBg = AppColors.blueLight,
-                    onClick = { nav.navigate("lesson"); showMore = false }
-                )
-                NavRowCard(
-                    icon = "proof",
-                    title = "校订",
-                    subtitle = "校对 / 修订题目内容",
-                    iconTint = AppColors.blue,
-                    iconBg = AppColors.blueLight,
-                    onClick = { nav.navigate("proof"); showMore = false }
-                )
-                NavRowCard(
-                    icon = "note",
-                    title = "知识库",
-                    subtitle = "所有科目资料汇总",
-                    iconTint = AppColors.blue,
-                    iconBg = AppColors.blueLight,
-                    onClick = { nav.navigate("knowledge"); showMore = false }
-                )
+                MoreSheetRow("lesson", "备课组", "按知识点整理的备课资料") { nav.navigate("lesson"); showMore = false }
+                MoreSheetRow("proof", "校订", "校对 / 修订题目内容") { nav.navigate("proof"); showMore = false }
+                MoreSheetRow("note", "知识库", "所有科目资料汇总") { nav.navigate("knowledge"); showMore = false }
             }
+        }
+    }
+}
+
+/** 弹出收纳入口的紧凑列表行：低位图表 + 单行文案 + chevron（比 NavRowCard 矮约 1/3） */
+@Composable
+private fun MoreSheetRow(icon: String, title: String, subtitle: String, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = CardTokens.Elevation),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(Radius.sm))
+                    .background(AppColors.blueLight),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(appPainter(icon), contentDescription = null, tint = AppColors.blue, modifier = Modifier.size(18.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, fontSize = 14.sp, maxLines = 1)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = AppColors.textSecondary, fontSize = 12.sp, maxLines = 1)
+            }
+            Icon(appPainter("chevron"), contentDescription = null, tint = AppColors.textSecondary.copy(alpha = 0.4f), modifier = Modifier.size(16.dp))
         }
     }
 }
